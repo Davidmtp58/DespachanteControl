@@ -60,3 +60,66 @@ A modelagem foi desenvolvida manualmente com foco em SQL Server, integridade dos
 Custo total = soma das despesas do serviço
 
 Resultado líquido = valor recebido - custo total
+
+## DER
+
+```mermaid
+erDiagram
+
+    CLIENTE {
+        INT id_cliente PK
+        VARCHAR tipo_pessoa
+        VARCHAR nome_razao_social
+        VARCHAR cpf_cnpj
+        VARCHAR telefone
+        VARCHAR email
+        DATE data_nascimento
+        DATETIME2 data_cadastro
+    }
+
+    VEICULO {
+        INT id_veiculo PK
+        INT id_cliente_proprietario FK
+        VARCHAR placa
+        VARCHAR tipo_veiculo
+        VARCHAR marca
+        VARCHAR modelo
+        SMALLINT ano
+        VARCHAR renavam
+        DATETIME2 data_cadastro
+    }
+
+    TIPO_SERVICO {
+        INT id_tipo_servico PK
+        VARCHAR nome
+        VARCHAR descricao
+        BIT ativo
+    }
+
+    SERVICO {
+        INT id_servico PK
+        INT id_cliente FK
+        INT id_veiculo FK
+        INT id_tipo_servico FK
+        DATETIME2 data_inicio
+        DATETIME2 data_conclusao
+        VARCHAR status
+        DECIMAL valor_recebido
+        VARCHAR observacoes
+        DATETIME2 data_cadastro
+    }
+
+    DESPESA_SERVICO {
+        INT id_despesa PK
+        INT id_servico FK
+        VARCHAR descricao
+        DECIMAL valor
+        DATE data_despesa
+        VARCHAR observacoes
+    }
+
+    CLIENTE ||--o{ VEICULO : possui
+    CLIENTE ||--o{ SERVICO : solicita
+    VEICULO ||--o{ SERVICO : recebe
+    TIPO_SERVICO ||--o{ SERVICO : classifica
+    SERVICO ||--o{ DESPESA_SERVICO : gera
