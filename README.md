@@ -124,3 +124,16 @@ erDiagram
     VEICULO ||--o{ SERVICO : recebe
     TIPO_SERVICO ||--o{ SERVICO : classifica
     SERVICO ||--o{ DESPESA_SERVICO : gera
+```
+## Estrutura dos Scripts SQL
+
+```text
+database/
+├── 01_create_database.sql
+├── 02_create_tables.sql
+├── 03_seed_data.sql
+├── 04_views.sql
+├── 05_indexes.sql
+├── 06_procedures.sql
+└── 07_analytical_queries.sql
+```
