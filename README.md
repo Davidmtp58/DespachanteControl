@@ -32,6 +32,7 @@ A modelagem foi desenvolvida manualmente com foco em SQL Server, integridade dos
 ### Entidades principais
 
 - `Cliente`
+- `Usuario`
 - `Veiculo`
 - `TipoServico`
 - `Servico`
@@ -44,6 +45,8 @@ A modelagem foi desenvolvida manualmente com foco em SQL Server, integridade dos
 - Veiculo 1:N Servico
 - TipoServico 1:N Servico
 - Servico 1:N DespesaServico
+
+A entidade `Usuario` é utilizada para autenticação administrativa e, no MVP, não possui relacionamento direto com as demais entidades de negócio.
 
 ## Regras de Negócio
 
@@ -59,6 +62,9 @@ A modelagem foi desenvolvida manualmente com foco em SQL Server, integridade dos
 - A data de conclusão não pode ser anterior à data de início.
 - Valores recebidos não podem ser negativos.
 - Despesas devem possuir valor maior que zero.
+- O acesso à aplicação será restrito a usuários administrativos autenticados.
+- As senhas não serão armazenadas em texto puro; o banco armazenará apenas o hash da senha.
+- Usuários podem ser desativados sem necessidade de exclusão do registro.
 
 ### Cálculos
 
@@ -81,6 +87,15 @@ erDiagram
         VARCHAR telefone
         VARCHAR email
         DATE data_nascimento
+        DATETIME2 data_cadastro
+    }
+
+    USUARIO {
+        INT id_usuario PK
+        VARCHAR nome
+        VARCHAR email
+        VARCHAR senha_hash
+        BIT ativo
         DATETIME2 data_cadastro
     }
 
@@ -149,11 +164,42 @@ Exemplos implementados:
 - `cpf_cnpj` é único;
 - `placa` é única;
 - `renavam` é único;
+- `email` de usuário é único;
 - `tipo_pessoa` aceita apenas `PF` ou `PJ`;
 - `status` aceita apenas valores definidos;
 - `valor_recebido` não pode ser negativo;
 - `valor` de uma despesa deve ser maior que zero;
 - `data_conclusao` não pode ser anterior a `data_inicio`.
+
+## Autenticação
+
+O sistema será acessado apenas por usuários administrativos autenticados.
+
+A autenticação será implementada no backend utilizando a tabela `Usuario`.
+
+Fluxo previsto:
+
+```text
+React
+  ↓
+Login
+  ↓
+API Node.js + TypeScript
+  ↓
+Validação do usuário
+  ↓
+SQL Server
+```
+
+A senha informada pelo usuário não será armazenada diretamente.
+
+O backend será responsável por:
+
+- gerar o hash da senha;
+- comparar a senha informada com o hash armazenado;
+- validar se o usuário está ativo;
+- controlar sessão ou token de autenticação;
+- proteger os endpoints da API.
 
 ## Views
 
@@ -257,7 +303,10 @@ Algumas decisões importantes tomadas durante o desenvolvimento:
 - foi utilizado `DECIMAL` para valores financeiros;
 - `LEFT JOIN` foi utilizado nas despesas para permitir serviços sem custos registrados;
 - `COALESCE` foi utilizado para transformar valores nulos em zero em cálculos financeiros;
-- índices foram criados apenas onde havia justificativa pelos padrões de consulta.
+- índices foram criados apenas onde havia justificativa pelos padrões de consulta;
+- autenticação foi separada da lógica de negócio;
+- a senha será armazenada apenas na forma de hash;
+- o backend será responsável por autenticar usuários e proteger os dados da aplicação.
 
 ## Status do Projeto
 
@@ -273,11 +322,13 @@ Algumas decisões importantes tomadas durante o desenvolvimento:
 - ✅ Consultas analíticas
 - ✅ Índices
 - ✅ Stored Procedure
+- ✅ Entidade de usuário
 - ✅ DER
 - ✅ Documentação SQL
 
 ### Aplicação
 
+- ⏳ Autenticação
 - ⏳ Backend/API
 - ⏳ Frontend
 - ⏳ Integração com SQL Server
@@ -287,12 +338,14 @@ Algumas decisões importantes tomadas durante o desenvolvimento:
 ## Próximas Etapas
 
 - criação da interface da aplicação;
-- desenvolvimento da API;
-- integração entre aplicação e SQL Server;
+- desenvolvimento da API Node.js + TypeScript;
+- implementação da autenticação;
+- integração da API com SQL Server;
+- integração do frontend com a API;
 - implementação do dashboard visual;
 - testes funcionais;
 - refinamento da documentação;
-- publicação da aplicação.
+- publicação da aplicação com acesso restrito.
 
 ## Objetivo de Portfólio
 
@@ -307,6 +360,7 @@ Este projeto foi estruturado para demonstrar principalmente conhecimentos em:
 - Views;
 - Stored Procedures;
 - índices;
-- construção de indicadores.
+- construção de indicadores;
+- integração entre banco de dados e aplicação.
 
 A implementação da aplicação será utilizada para consumir e apresentar os dados estruturados no banco, mantendo a camada de dados como uma das principais partes técnicas do projeto.
