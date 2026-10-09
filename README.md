@@ -60,6 +60,7 @@ A modelagem foi desenvolvida manualmente com foco em SQL Server, integridade dos
 Custo total = soma das despesas do serviço
 
 Resultado líquido = valor recebido - custo total
+```
 
 ## DER
 
