@@ -53,6 +53,12 @@ A modelagem foi desenvolvida manualmente com foco em SQL Server, integridade dos
 - Um serviço também pode existir sem despesas.
 - O custo total não é armazenado diretamente.
 - O resultado líquido não é armazenado diretamente.
+- Serviços podem possuir os status `EM_ANDAMENTO`, `CONCLUIDO` ou `CANCELADO`.
+- Um serviço cancelado pode possuir valor recebido caso tenha ocorrido alguma cobrança.
+- CPF/CNPJ, placa e RENAVAM não podem ser duplicados.
+- A data de conclusão não pode ser anterior à data de início.
+- Valores recebidos não podem ser negativos.
+- Despesas devem possuir valor maior que zero.
 
 ### Cálculos
 
@@ -125,6 +131,106 @@ erDiagram
     TIPO_SERVICO ||--o{ SERVICO : classifica
     SERVICO ||--o{ DESPESA_SERVICO : gera
 ```
+
+## Integridade dos Dados
+
+O banco utiliza diferentes mecanismos para garantir consistência e integridade:
+
+- `PRIMARY KEY`
+- `FOREIGN KEY`
+- `IDENTITY`
+- `NOT NULL`
+- `UNIQUE`
+- `CHECK`
+- `DEFAULT`
+
+Exemplos implementados:
+
+- `cpf_cnpj` é único;
+- `placa` é única;
+- `renavam` é único;
+- `tipo_pessoa` aceita apenas `PF` ou `PJ`;
+- `status` aceita apenas valores definidos;
+- `valor_recebido` não pode ser negativo;
+- `valor` de uma despesa deve ser maior que zero;
+- `data_conclusao` não pode ser anterior a `data_inicio`.
+
+## Views
+
+### `vw_ResumoFinanceiroServico`
+
+Consolida informações operacionais e financeiras de cada serviço, incluindo:
+
+- cliente;
+- placa;
+- tipo de serviço;
+- status;
+- data de início;
+- data de conclusão;
+- valor recebido;
+- custo total;
+- resultado líquido.
+
+O custo total e o resultado líquido são calculados a partir das despesas registradas, evitando redundância no banco.
+
+### `vw_DashboardResumo`
+
+Retorna os principais indicadores utilizados no dashboard:
+
+- receita total;
+- custos totais;
+- resultado líquido;
+- quantidade de serviços;
+- serviços em andamento.
+
+## Stored Procedure
+
+### `sp_ResumoFinanceiroServico`
+
+Stored Procedure criada para retornar o resumo financeiro de um serviço específico a partir do seu identificador.
+
+Exemplo:
+
+```sql
+EXEC sp_ResumoFinanceiroServico @id_servico = 1;
+```
+
+## Índices
+
+Foram criados índices com base nos principais padrões de consulta da aplicação:
+
+- `IX_Servico_Status`
+- `IX_Servico_DataInicio`
+- `IX_DespesaServico_IdServico`
+
+Os índices foram definidos para melhorar consultas relacionadas a:
+
+- serviços por status;
+- serviços por período;
+- relacionamento entre serviços e despesas.
+
+## Consultas Analíticas
+
+O projeto possui consultas SQL voltadas para análise operacional e financeira, incluindo:
+
+- receita por mês;
+- serviços mais realizados;
+- quantidade de serviços por status;
+- resumo financeiro por serviço;
+- indicadores gerais do dashboard.
+
+Entre os principais recursos utilizados nas consultas estão:
+
+- `INNER JOIN`
+- `LEFT JOIN`
+- `GROUP BY`
+- `SUM`
+- `COUNT`
+- `COALESCE`
+- `YEAR`
+- `MONTH`
+- `ORDER BY`
+
 ## Estrutura dos Scripts SQL
 
 ```text
@@ -137,3 +243,70 @@ database/
 ├── 06_procedures.sql
 └── 07_analytical_queries.sql
 ```
+
+Os scripts foram organizados por responsabilidade para facilitar manutenção, versionamento e reprodução da estrutura do banco de dados.
+
+## Decisões Técnicas
+
+Algumas decisões importantes tomadas durante o desenvolvimento:
+
+- cliente PF e PJ foram mantidos em uma única entidade;
+- o cliente solicitante do serviço pode ser diferente do proprietário do veículo;
+- despesas foram separadas em uma entidade própria para permitir múltiplos custos por serviço;
+- custo total e resultado líquido não são armazenados, pois são atributos derivados;
+- foi utilizado `DECIMAL` para valores financeiros;
+- `LEFT JOIN` foi utilizado nas despesas para permitir serviços sem custos registrados;
+- `COALESCE` foi utilizado para transformar valores nulos em zero em cálculos financeiros;
+- índices foram criados apenas onde havia justificativa pelos padrões de consulta.
+
+## Status do Projeto
+
+### Banco de Dados
+
+- ✅ Modelagem conceitual
+- ✅ Modelagem lógica
+- ✅ Tabelas
+- ✅ Relacionamentos
+- ✅ Regras de integridade
+- ✅ Dados iniciais
+- ✅ Views
+- ✅ Consultas analíticas
+- ✅ Índices
+- ✅ Stored Procedure
+- ✅ DER
+- ✅ Documentação SQL
+
+### Aplicação
+
+- ⏳ Backend/API
+- ⏳ Frontend
+- ⏳ Integração com SQL Server
+- ⏳ Dashboard visual
+- ⏳ Testes funcionais
+
+## Próximas Etapas
+
+- criação da interface da aplicação;
+- desenvolvimento da API;
+- integração entre aplicação e SQL Server;
+- implementação do dashboard visual;
+- testes funcionais;
+- refinamento da documentação;
+- publicação da aplicação.
+
+## Objetivo de Portfólio
+
+Este projeto foi estruturado para demonstrar principalmente conhecimentos em:
+
+- SQL Server;
+- modelagem de dados;
+- relacionamentos;
+- integridade referencial;
+- consultas SQL;
+- análise de dados;
+- Views;
+- Stored Procedures;
+- índices;
+- construção de indicadores.
+
+A implementação da aplicação será utilizada para consumir e apresentar os dados estruturados no banco, mantendo a camada de dados como uma das principais partes técnicas do projeto.
