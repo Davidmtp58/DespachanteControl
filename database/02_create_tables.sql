@@ -21,6 +21,20 @@ CREATE TABLE Cliente (
 GO
 
 /* =====================================================
+   TABELA: Usuario
+   Armazena usuários administrativos da aplicação.
+   ===================================================== */
+CREATE TABLE Usuario (
+    id_usuario INT IDENTITY(1,1) PRIMARY KEY,
+    nome VARCHAR(120) NOT NULL,
+    email VARCHAR(150) NOT NULL UNIQUE,
+    senha_hash VARCHAR(255) NOT NULL,
+    ativo BIT NOT NULL DEFAULT 1,
+    data_cadastro DATETIME2 NOT NULL DEFAULT SYSDATETIME()
+);
+GO
+
+/* =====================================================
    TABELA: Veiculo
    Armazena os veículos vinculados aos clientes.
    ===================================================== */
