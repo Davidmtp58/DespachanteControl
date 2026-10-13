@@ -3,13 +3,24 @@ GO
 
 /* =====================================================
    DADOS INICIAIS
-   Tipos de serviço padrão do sistema.
+   Insere tipos de serviço que ainda não existem.
    ===================================================== */
 
 INSERT INTO TipoServico (nome, descricao)
-VALUES
-('Transferência', 'Transferência de propriedade do veículo'),
-('Licenciamento', 'Regularização ou renovação do licenciamento'),
-('Emplacamento', 'Serviço relacionado ao emplacamento do veículo'),
-('Outros', 'Outros serviços prestados pelo despachante');
+SELECT
+    dados.nome,
+    dados.descricao
+FROM (
+    VALUES
+        ('Transferência', 'Transferência de propriedade do veículo'),
+        ('Licenciamento', 'Regularização ou renovação do licenciamento'),
+        ('Emplacamento', 'Serviço relacionado ao emplacamento do veículo'),
+        ('Outros', 'Outros serviços prestados pelo despachante')
+) AS dados(nome, descricao)
+
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM TipoServico ts
+    WHERE ts.nome = dados.nome
+);
 GO

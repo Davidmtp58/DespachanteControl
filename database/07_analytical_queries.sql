@@ -1,18 +1,13 @@
 USE DespachanteControl;
 GO
 
-/* =====================================================
-   CONSULTAS ANALÍTICAS
-   Consultas utilizadas para análise operacional
-   e financeira do sistema.
-   ===================================================== */
+/* Valor recebido por mês de início do serviço */
 
-
-/* Receita por mês */
 SELECT
     YEAR(data_inicio) AS ano,
     MONTH(data_inicio) AS mes,
-    SUM(valor_recebido) AS receita_total
+    SUM(valor_recebido)
+        AS valor_recebido_servicos_iniciados
 FROM Servico
 GROUP BY
     YEAR(data_inicio),
