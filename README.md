@@ -414,7 +414,7 @@ DespachanteControl/
         └── browser/
 ```
 
-**Observação sobre versionamento:** a implementação do frontend foi concluída localmente, mas ainda não havia sido enviada ao repositório remoto no momento desta atualização. A árvore acima representa a estrutura de trabalho pretendida após o commit e push dos arquivos revisados.
+**Observação sobre versionamento:** A estrutura apresentada resume os principais diretórios do projeto. Alguns arquivos auxiliares de configuração e testes foram omitidos para facilitar a leitura.
 
 ## Como executar os scripts SQL
 
