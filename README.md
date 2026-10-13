@@ -1,84 +1,140 @@
-# DespachanteControl
+# Despachante Control
 
-Sistema web desenvolvido como projeto de portfólio e extensão acadêmica para auxiliar um microempreendimento de despachante documentalista no controle de clientes, veículos, serviços e resultados financeiros.
+Sistema web desenvolvido como projeto de portfólio e extensão acadêmica para apoiar um microempreendimento de despachante documentalista no controle de clientes, veículos, serviços, despesas e resultados financeiros.
+
+O projeto nasceu de uma necessidade real de organização das informações do negócio. Seu foco técnico inicial é a **modelagem relacional e a implementação do banco de dados em SQL Server**, incluindo integridade, consultas analíticas e indicadores financeiros.
+
+## Estado atual do projeto
+
+- **Banco de dados:** modelado, implementado e validado nos cenários de teste realizados no SQL Server.
+- **Frontend:** demonstração funcional em React + TypeScript, com nove áreas, dados simulados e alterações mantidas somente em memória. Desenvolvido localmente; ainda não integrado ao banco.
+- **Backend/API:** ainda não implementado.
+- **Autenticação e persistência reais:** planejadas para a etapa de integração.
+
+> **Importante:** a tela de login atual é demonstrativa. O frontend não consulta nem grava dados no SQL Server e os dados em memória retornam ao estado inicial ao recarregar a aplicação.
 
 ## Problema
 
-O controle atual é realizado principalmente em papel e arquivos físicos, dificultando o acompanhamento de:
+O controle das atividades do despachante é realizado principalmente em papel e arquivos físicos, dificultando o acompanhamento de:
 
-- clientes;
-- veículos;
-- serviços em andamento;
-- serviços concluídos;
-- despesas;
+- clientes e proprietários de veículos;
+- veículos vinculados aos atendimentos;
+- serviços em andamento, concluídos ou cancelados;
+- despesas relacionadas a cada serviço;
 - valores recebidos;
-- resultado financeiro.
+- resultados financeiros da operação.
 
 ## Objetivo
 
-Centralizar essas informações em uma aplicação web simples, permitindo acompanhar melhor a operação e o resultado financeiro do negócio.
+Centralizar essas informações em uma aplicação web simples, permitindo ao despachante acompanhar a operação e os resultados financeiros com mais organização, rastreabilidade e clareza.
 
 ## Stack
 
+### Banco de dados — implementado
+
 - SQL Server
-- SQL Server Management Studio
-- Node.js + TypeScript
-- React + TypeScript
+- SQL Server Management Studio (SSMS)
+- T-SQL
 
-## Banco de Dados
+### Frontend — demonstração implementada
 
-A modelagem foi desenvolvida manualmente com foco em SQL Server, integridade dos dados e consultas analíticas.
+- React
+- TypeScript
+- Vite
+- Playwright (testes de navegador)
+
+### Backend — planejado
+
+- Node.js
+- TypeScript
+- API para integração com SQL Server
+
+### Ferramentas de desenvolvimento
+
+- Git e GitHub
+- Visual Studio Code
+
+## Arquitetura e estágio de integração
+
+A aplicação está organizada em camadas, com responsabilidades distintas:
+
+```text
+ATUALMENTE
+
+Frontend React + TypeScript
+    ├── Telas e formulários
+    ├── Validações e cálculos demonstrativos
+    └── Mocks + estado em memória (sem persistência)
+
+Banco de dados SQL Server
+    ├── Tabelas e relacionamentos
+    ├── Restrições de integridade
+    ├── Views e Stored Procedure
+    └── Consultas analíticas e índices
+
+As duas partes ainda NÃO estão conectadas.
+
+PRÓXIMA ETAPA
+
+Frontend React + TypeScript
+            ↓
+API Node.js + TypeScript
+            ↓
+SQL Server
+```
+
+## Banco de dados
+
+A modelagem foi desenvolvida manualmente para representar os relacionamentos e as regras do negócio, com atenção à integridade dos dados e ao uso de consultas para análise operacional e financeira.
 
 ### Entidades principais
 
-- `Cliente`
-- `Usuario`
-- `Veiculo`
-- `TipoServico`
-- `Servico`
-- `DespesaServico`
+- `Cliente`: pessoas físicas ou jurídicas cadastradas.
+- `Usuario`: usuários administrativos, para a futura autenticação.
+- `Veiculo`: veículos e vínculo com o cliente proprietário.
+- `TipoServico`: catálogo de tipos de atendimento.
+- `Servico`: registro central dos serviços solicitados.
+- `DespesaServico`: despesas individuais associadas a cada serviço.
 
 ### Relacionamentos
 
-- Cliente 1:N Veiculo
-- Cliente 1:N Servico
-- Veiculo 1:N Servico
-- TipoServico 1:N Servico
-- Servico 1:N DespesaServico
+- Cliente **1:N** Veículo (proprietário).
+- Cliente **1:N** Serviço (solicitante).
+- Veículo **1:N** Serviço.
+- Tipo de Serviço **1:N** Serviço.
+- Serviço **1:N** Despesa de Serviço.
 
-A entidade `Usuario` é utilizada para autenticação administrativa e, no MVP, não possui relacionamento direto com as demais entidades de negócio.
+A entidade `Usuario` foi criada para a futura autenticação administrativa e, no MVP, não possui relacionamento direto com as entidades de negócio.
 
-## Regras de Negócio
+## Regras de negócio
 
-- O cliente pode ser pessoa física ou jurídica.
-- O cliente que solicita o serviço não precisa ser o proprietário do veículo.
-- Um serviço pode possuir várias despesas.
-- Um serviço também pode existir sem despesas.
-- O custo total não é armazenado diretamente.
-- O resultado líquido não é armazenado diretamente.
-- Serviços podem possuir os status `EM_ANDAMENTO`, `CONCLUIDO` ou `CANCELADO`.
-- Um serviço cancelado pode possuir valor recebido caso tenha ocorrido alguma cobrança.
+- O cliente pode ser pessoa física (`PF`) ou jurídica (`PJ`).
+- O cliente solicitante do serviço pode ser diferente do proprietário do veículo.
+- Um serviço pode ter nenhuma, uma ou várias despesas.
+- Um serviço pode ser registrado sem cobrança, com valor recebido igual a zero.
+- O custo total e o resultado líquido não são armazenados diretamente; são calculados a partir dos registros existentes.
+- Os status permitidos são `EM_ANDAMENTO`, `CONCLUIDO` e `CANCELADO`.
+- Serviços cancelados permanecem nos totais financeiros, inclusive quando houve cobrança ou despesa.
 - CPF/CNPJ, placa e RENAVAM não podem ser duplicados.
 - A data de conclusão não pode ser anterior à data de início.
 - Valores recebidos não podem ser negativos.
-- Despesas devem possuir valor maior que zero.
-- O acesso à aplicação será restrito a usuários administrativos autenticados.
-- As senhas não serão armazenadas em texto puro; o banco armazenará apenas o hash da senha.
-- Usuários podem ser desativados sem necessidade de exclusão do registro.
+- Despesas devem ter valor maior que zero.
+- Usuários administrativos podem ser desativados sem a exclusão do registro.
+- O acesso restrito e a verificação de senhas serão implementados no backend; a autenticação ainda não está ativa.
 
-### Cálculos
+### Cálculos financeiros
 
 ```text
 Custo total = soma das despesas do serviço
-
 Resultado líquido = valor recebido - custo total
 ```
 
-## DER
+Os cálculos são realizados por meio de agregações e tratam serviços sem despesas, evitando que valores nulos prejudiquem os resultados.
+
+## Diagrama Entidade-Relacionamento (DER)
 
 ```mermaid
 erDiagram
-
     CLIENTE {
         INT id_cliente PK
         VARCHAR tipo_pessoa
@@ -147,220 +203,302 @@ erDiagram
     SERVICO ||--o{ DESPESA_SERVICO : gera
 ```
 
-## Integridade dos Dados
+## Integridade dos dados
 
-O banco utiliza diferentes mecanismos para garantir consistência e integridade:
+O banco utiliza recursos nativos do SQL Server para proteger a consistência das informações:
 
-- `PRIMARY KEY`
-- `FOREIGN KEY`
-- `IDENTITY`
-- `NOT NULL`
-- `UNIQUE`
-- `CHECK`
-- `DEFAULT`
+- `PRIMARY KEY` e `IDENTITY` para identificação dos registros;
+- `FOREIGN KEY` para integridade referencial;
+- `NOT NULL` para campos obrigatórios;
+- `UNIQUE` para evitar duplicidades;
+- `CHECK` para validar domínios e regras;
+- `DEFAULT` para valores e datas iniciais.
 
 Exemplos implementados:
 
-- `cpf_cnpj` é único;
-- `placa` é única;
-- `renavam` é único;
-- `email` de usuário é único;
+- `cpf_cnpj`, `placa` e `renavam` são únicos;
+- e-mail de usuário é único;
 - `tipo_pessoa` aceita apenas `PF` ou `PJ`;
-- `status` aceita apenas valores definidos;
-- `valor_recebido` não pode ser negativo;
-- `valor` de uma despesa deve ser maior que zero;
-- `data_conclusao` não pode ser anterior a `data_inicio`.
-
-## Autenticação
-
-O sistema será acessado apenas por usuários administrativos autenticados.
-
-A autenticação será implementada no backend utilizando a tabela `Usuario`.
-
-Fluxo previsto:
-
-```text
-React
-  ↓
-Login
-  ↓
-API Node.js + TypeScript
-  ↓
-Validação do usuário
-  ↓
-SQL Server
-```
-
-A senha informada pelo usuário não será armazenada diretamente.
-
-O backend será responsável por:
-
-- gerar o hash da senha;
-- comparar a senha informada com o hash armazenado;
-- validar se o usuário está ativo;
-- controlar sessão ou token de autenticação;
-- proteger os endpoints da API.
+- `status` aceita apenas os três valores definidos;
+- `valor_recebido >= 0`;
+- `DespesaServico.valor > 0`;
+- `data_conclusao` deve ser nula ou maior ou igual a `data_inicio`.
 
 ## Views
 
 ### `vw_ResumoFinanceiroServico`
 
-Consolida informações operacionais e financeiras de cada serviço, incluindo:
+Consolida informações operacionais e financeiras por serviço:
 
-- cliente;
-- placa;
-- tipo de serviço;
-- status;
-- data de início;
-- data de conclusão;
+- cliente solicitante;
+- placa do veículo;
+- tipo e status do serviço;
+- datas de início e conclusão;
 - valor recebido;
 - custo total;
 - resultado líquido.
 
-O custo total e o resultado líquido são calculados a partir das despesas registradas, evitando redundância no banco.
+O cálculo utiliza `LEFT JOIN`, `SUM` e `COALESCE` para incluir serviços sem despesas e tratar corretamente os totais.
 
 ### `vw_DashboardResumo`
 
-Retorna os principais indicadores utilizados no dashboard:
+Consolida os indicadores gerais:
 
-- receita total;
+- total de valores recebidos;
 - custos totais;
 - resultado líquido;
 - quantidade de serviços;
 - serviços em andamento.
 
+**Observação:** os totais dessa View consideram os serviços cadastrados, inclusive os cancelados; não representam, por si só, um fluxo de caixa por data de pagamento.
+
 ## Stored Procedure
 
 ### `sp_ResumoFinanceiroServico`
 
-Stored Procedure criada para retornar o resumo financeiro de um serviço específico a partir do seu identificador.
-
-Exemplo:
+Retorna o resumo financeiro de um serviço específico, informado por identificador.
 
 ```sql
-EXEC sp_ResumoFinanceiroServico @id_servico = 1;
+EXEC sp_ResumoFinanceiroServico @id_servico = 4;
 ```
+
+A procedure foi testada no SSMS com dados de demonstração e seus valores foram confrontados com os da View financeira.
 
 ## Índices
 
-Foram criados índices com base nos principais padrões de consulta da aplicação:
+Foram criados índices orientados aos padrões de consulta previstos na aplicação:
 
 - `IX_Servico_Status`
 - `IX_Servico_DataInicio`
 - `IX_DespesaServico_IdServico`
 
-Os índices foram definidos para melhorar consultas relacionadas a:
+Eles apoiam filtros de serviços por status ou data e a associação entre serviços e despesas. **Não foi realizada medição comparativa de desempenho** antes e depois dos índices.
 
-- serviços por status;
-- serviços por período;
-- relacionamento entre serviços e despesas.
+## Consultas analíticas
 
-## Consultas Analíticas
+O projeto possui consultas para análise operacional e financeira, incluindo:
 
-O projeto possui consultas SQL voltadas para análise operacional e financeira, incluindo:
-
-- receita por mês;
+- **valor recebido associado aos serviços iniciados em cada mês**;
 - serviços mais realizados;
 - quantidade de serviços por status;
 - resumo financeiro por serviço;
 - indicadores gerais do dashboard.
 
-Entre os principais recursos utilizados nas consultas estão:
+A primeira consulta utiliza `data_inicio` como referência temporal. Portanto, **não deve ser interpretada como receita recebida no mês do pagamento**, já que ainda não existe controle de datas de pagamento.
 
-- `INNER JOIN`
-- `LEFT JOIN`
-- `GROUP BY`
-- `SUM`
-- `COUNT`
-- `COALESCE`
-- `YEAR`
-- `MONTH`
-- `ORDER BY`
+Entre os recursos utilizados estão:
 
-## Estrutura dos Scripts SQL
+- `INNER JOIN` e `LEFT JOIN`;
+- `GROUP BY`;
+- `SUM`, `COUNT` e `COALESCE`;
+- `YEAR` e `MONTH`;
+- `ORDER BY`.
 
-```text
-database/
-├── 01_create_database.sql
-├── 02_create_tables.sql
-├── 03_seed_data.sql
-├── 04_views.sql
-├── 05_indexes.sql
-├── 06_procedures.sql
-└── 07_analytical_queries.sql
+## Dados iniciais (seed)
+
+O script `03_seed_data.sql` cadastra os tipos de serviço padrão:
+
+- Transferência;
+- Licenciamento;
+- Emplacamento;
+- Outros.
+
+A inserção usa `WHERE NOT EXISTS` para evitar registros duplicados quando o script é executado novamente. O seed **não** popula automaticamente clientes, veículos, serviços nem despesas de demonstração.
+
+## Frontend demonstrativo
+
+O frontend foi implementado com nove áreas de navegação e operação:
+
+1. Login demonstrativo;
+2. Dashboard;
+3. Clientes;
+4. Veículos;
+5. Serviços (listagem, busca e filtros);
+6. Cadastro de serviço;
+7. Detalhe do serviço;
+8. Despesas do serviço;
+9. Resumo financeiro.
+
+Os formulários e componentes compartilhados ficam separados das páginas. As regras e os cálculos da demonstração foram organizados em serviços locais, enquanto os dados simulados permanecem isolados em `mocks`.
+
+### Limitações atuais da demonstração
+
+- O botão de entrada não realiza autenticação real.
+- Inclusões e alterações são mantidas apenas em memória.
+- Os dados retornam ao estado inicial após recarregar a página.
+- O frontend ainda não utiliza a API nem consulta o SQL Server.
+
+Essas limitações são intencionais nesta fase; não se trata ainda de uma aplicação pronta para uso operacional com dados reais.
+
+### Execução local do frontend
+
+Na pasta `frontend/`:
+
+```bash
+npm install
+npm run dev
 ```
 
-Os scripts foram organizados por responsabilidade para facilitar manutenção, versionamento e reprodução da estrutura do banco de dados.
+Abra o endereço local exibido pelo Vite no terminal.
 
-## Decisões Técnicas
+## Autenticação — implementação futura
 
-Algumas decisões importantes tomadas durante o desenvolvimento:
+A tabela `Usuario` já está presente no SQL Server, mas ainda não há autenticação real no frontend.
 
-- cliente PF e PJ foram mantidos em uma única entidade;
-- o cliente solicitante do serviço pode ser diferente do proprietário do veículo;
-- despesas foram separadas em uma entidade própria para permitir múltiplos custos por serviço;
-- custo total e resultado líquido não são armazenados, pois são atributos derivados;
-- foi utilizado `DECIMAL` para valores financeiros;
-- `LEFT JOIN` foi utilizado nas despesas para permitir serviços sem custos registrados;
-- `COALESCE` foi utilizado para transformar valores nulos em zero em cálculos financeiros;
-- índices foram criados apenas onde havia justificativa pelos padrões de consulta;
-- autenticação foi separada da lógica de negócio;
-- a senha será armazenada apenas na forma de hash;
-- o backend será responsável por autenticar usuários e proteger os dados da aplicação.
+Fluxo planejado:
 
-## Status do Projeto
+```text
+React (login)
+    ↓
+API Node.js + TypeScript
+    ↓
+Validação de credenciais e usuário ativo
+    ↓
+SQL Server (Usuario)
+```
 
-### Banco de Dados
+O backend será responsável por:
 
-- ✅ Modelagem conceitual
-- ✅ Modelagem lógica
-- ✅ Tabelas
-- ✅ Relacionamentos
-- ✅ Regras de integridade
-- ✅ Dados iniciais
-- ✅ Views
-- ✅ Consultas analíticas
-- ✅ Índices
-- ✅ Stored Procedure
-- ✅ Entidade de usuário
-- ✅ DER
-- ✅ Documentação SQL
+- gerar e verificar o hash das senhas, sem armazenar senhas em texto puro;
+- validar se o usuário está ativo;
+- implementar controle de sessão ou token;
+- proteger as rotas da API;
+- aplicar as regras de autorização necessárias.
+
+## Testes e validações
+
+### SQL Server — executados no SSMS
+
+- Existência dos objetos principais: **6 tabelas, 2 Views, 1 Stored Procedure e 3 índices**.
+- Conferência dos resultados da View de dashboard com dados de demonstração: **R$ 1.850,00 recebidos, R$ 925,00 em custos e R$ 925,00 de resultado líquido**.
+- Conferência do resumo financeiro por serviço, incluindo um serviço cancelado sem despesas.
+- Execução da Stored Procedure para o serviço de exemplo `4`, com **R$ 1.200,00 recebidos, R$ 640,00 em custos e R$ 560,00 de resultado líquido**.
+- Testes de restrições `CHECK`, `FOREIGN KEY` e `UNIQUE`, incluindo rejeição de dados inválidos.
+- Validação da consulta mensal e da execução repetida do seed sem duplicação de tipos de serviço.
+
+Os valores acima são **dados de demonstração**, não indicadores reais do empreendimento. Esses testes validam os cenários executados, mas não equivalem a uma suíte exaustiva de testes automatizados do banco.
+
+### Frontend — validação reportada pelo ambiente de desenvolvimento
+
+- Compilação TypeScript e build: aprovados.
+- 6 testes de regras de negócio: aprovados.
+- 2 testes de navegador com Playwright, incluindo fluxo completo e visualização em celular: aprovados.
+- Capturas de tela inspecionadas.
+- Ainda não há script de lint configurado.
+
+## Estrutura do projeto
+
+```text
+DespachanteControl/
+├── README.md
+├── database/
+│   ├── 01_create_database.sql
+│   ├── 02_create_tables.sql
+│   ├── 03_seed_data.sql
+│   ├── 04_views.sql
+│   ├── 05_indexes.sql
+│   ├── 06_procedures.sql
+│   └── 07_analytical_queries.sql
+└── frontend/
+    ├── README.md
+    ├── package.json
+    ├── src/
+    │   ├── App.tsx
+    │   ├── components/
+    │   ├── layouts/
+    │   ├── mocks/
+    │   ├── pages/
+    │   ├── services/
+    │   └── types/
+    └── tests/
+        └── browser/
+```
+
+**Observação sobre versionamento:** a implementação do frontend foi concluída localmente, mas ainda não havia sido enviada ao repositório remoto no momento desta atualização. A árvore acima representa a estrutura de trabalho pretendida após o commit e push dos arquivos revisados.
+
+## Como executar os scripts SQL
+
+Em uma instância de desenvolvimento do SQL Server, execute os arquivos da pasta `database/` na ordem:
+
+1. `01_create_database.sql` — cria e seleciona o banco.
+2. `02_create_tables.sql` — cria tabelas, chaves e restrições.
+3. `03_seed_data.sql` — insere tipos de serviço ausentes.
+4. `04_views.sql` — cria ou atualiza as Views.
+5. `05_indexes.sql` — cria os índices quando ainda não existem.
+6. `06_procedures.sql` — cria ou atualiza a Stored Procedure.
+7. `07_analytical_queries.sql` — executa as consultas analíticas.
+
+O script de criação de tabelas destina-se à montagem inicial do banco e **não é idempotente**; executá-lo novamente sobre tabelas já existentes pode gerar erros. Use uma base de teste ao reproduzir a estrutura.
+
+## Decisões técnicas
+
+Algumas decisões importantes tomadas durante a modelagem e a implementação:
+
+- Manter clientes `PF` e `PJ` em uma única entidade.
+- Separar o cliente solicitante do cliente proprietário do veículo.
+- Registrar despesas em entidade própria, permitindo múltiplos custos por serviço.
+- Não armazenar custo total nem resultado líquido, pois são valores derivados.
+- Utilizar `DECIMAL(10,2)` para os valores financeiros.
+- Utilizar `LEFT JOIN` para incluir serviços sem despesas.
+- Utilizar `COALESCE` para evitar resultados nulos nos cálculos financeiros.
+- Definir restrições diretamente no banco, sem depender apenas dos formulários.
+- Criar índices de acordo com os padrões de consulta previstos.
+- Separar a futura autenticação das entidades centrais do negócio.
+- Distinguir o protótipo em memória da futura aplicação integrada ao banco.
+
+## Status do projeto
+
+### Banco de dados
+
+- [x] Modelagem conceitual e lógica
+- [x] Tabelas e relacionamentos
+- [x] Regras de integridade
+- [x] Dados iniciais de tipos de serviço
+- [x] Views e consultas analíticas
+- [x] Índices e Stored Procedure
+- [x] Entidade de usuário
+- [x] DER e documentação SQL
+- [x] Testes manuais dos principais cenários no SSMS
 
 ### Aplicação
 
-- ⏳ Autenticação
-- ⏳ Backend/API
-- ⏳ Frontend
-- ⏳ Integração com SQL Server
-- ⏳ Dashboard visual
-- ⏳ Testes funcionais
+- [x] Frontend demonstrativo em React + TypeScript
+- [x] Nove áreas da interface implementadas
+- [x] Validações e cálculos financeiros no frontend
+- [x] Testes de regras de negócio
+- [x] Testes de navegação e responsividade
+- [ ] Backend/API Node.js + TypeScript
+- [ ] Autenticação real
+- [ ] Integração com SQL Server
+- [ ] Persistência dos dados
+- [ ] Testes de integração
 
-## Próximas Etapas
+## Próximas etapas
 
-- criação da interface da aplicação;
-- desenvolvimento da API Node.js + TypeScript;
-- implementação da autenticação;
-- integração da API com SQL Server;
-- integração do frontend com a API;
-- implementação do dashboard visual;
-- testes funcionais;
-- refinamento da documentação;
-- publicação da aplicação com acesso restrito.
+Com a modelagem do banco concluída e o frontend demonstrativo implementado, as próximas etapas são:
 
-## Objetivo de Portfólio
+- Desenvolver a API com Node.js e TypeScript.
+- Implementar autenticação e autorização para usuários administrativos.
+- Conectar o backend ao SQL Server.
+- Substituir os dados simulados por operações realizadas por meio da API.
+- Implementar persistência de clientes, veículos, serviços e despesas.
+- Conectar o dashboard às Views e consultas do banco.
+- Realizar testes de integração entre frontend, backend e SQL Server.
+- Validar os fluxos completos com dados persistidos.
+- Revisar segurança, tratamento de erros e documentação.
+- Preparar a disponibilização com acesso restrito.
 
-Este projeto foi estruturado para demonstrar principalmente conhecimentos em:
+## Objetivo de portfólio
 
-- SQL Server;
-- modelagem de dados;
-- relacionamentos;
-- integridade referencial;
-- consultas SQL;
-- análise de dados;
-- Views;
-- Stored Procedures;
-- índices;
-- construção de indicadores;
-- integração entre banco de dados e aplicação.
+O Despachante Control é um projeto de portfólio e extensão acadêmica desenvolvido a partir de uma necessidade real. Seu principal objetivo técnico nesta primeira etapa é demonstrar conhecimentos em:
 
-A implementação da aplicação será utilizada para consumir e apresentar os dados estruturados no banco, mantendo a camada de dados como uma das principais partes técnicas do projeto.
+- modelagem de banco de dados;
+- SQL Server e T-SQL;
+- relacionamentos e integridade referencial;
+- `PRIMARY KEY`, `FOREIGN KEY`, `IDENTITY`, `NOT NULL`, `UNIQUE`, `CHECK` e `DEFAULT`;
+- consultas com `JOIN`, `GROUP BY` e agregações;
+- Views, Stored Procedures e índices;
+- validação de regras de negócio;
+- construção de indicadores operacionais e financeiros.
+
+O frontend demonstrativo complementa esse trabalho e prepara o projeto para uma segunda etapa: transformar a modelagem e as consultas em uma aplicação completa, integrada e com persistência de dados.
