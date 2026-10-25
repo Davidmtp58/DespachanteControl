@@ -1,5 +1,16 @@
 import { Layers3, ArrowRight, ClipboardCheck, Users, ChartNoAxesCombined } from "lucide-react";
-export function Login({ entrar }: { entrar: () => void }) {
+import { useState } from "react";
+export function Login({
+  entrar,
+  busy,
+  message,
+}: {
+  entrar: (email: string, senha: string) => Promise<void>;
+  busy: boolean;
+  message: string;
+}) {
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
   return (
     <div className="login-page">
       <section className="login-story">
@@ -41,18 +52,31 @@ export function Login({ entrar }: { entrar: () => void }) {
       </section>
       <section className="login-form-area">
         <div className="login-form">
-          <span className="preview-tag">DEMONSTRAÇÃO DO FRONTEND</span>
+          <span className="preview-tag">ACESSO AO SISTEMA</span>
           <h2>Bem-vindo ao seu escritório</h2>
-          <p className="muted">Acesse a prévia e conheça sua área de trabalho.</p>
+          <p className="muted">Entre com sua conta para acessar sua área de trabalho.</p>
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              entrar();
+              try {
+                await entrar(email.trim(), senha);
+              } finally {
+                setSenha("");
+              }
             }}
           >
             <label className="field">
               <span>E-mail</span>
-              <input name="email" type="email" placeholder="seu@email.com" autoComplete="off" />
+              <input
+                name="email"
+                type="email"
+                placeholder="seu@email.com"
+                autoComplete="username"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={busy}
+              />
             </label>
             <label className="field">
               <span>Senha</span>
@@ -60,18 +84,27 @@ export function Login({ entrar }: { entrar: () => void }) {
                 name="password"
                 type="password"
                 placeholder="Digite sua senha"
-                autoComplete="off"
+                autoComplete="current-password"
+                required
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                disabled={busy}
               />
             </label>
-            <button className="primary" type="submit">
-              Entrar <ArrowRight size={18} />
+            {message && (
+              <p className="error" role="alert">
+                {message}
+              </p>
+            )}
+            <button className="primary" type="submit" disabled={busy}>
+              {busy ? "Entrando…" : "Entrar"} <ArrowRight size={18} />
             </button>
           </form>
           <div className="login-note">
-            <strong>Esta é uma prévia visual.</strong>
+            <strong>Autenticação, Clientes, Veículos e Serviços integrados.</strong>
             <p>
-              Não é necessário informar credenciais. O botão Entrar abre a demonstração, sem
-              autenticação ou sessão. Os dados voltam ao estado inicial ao recarregar.
+              Use sua conta cadastrada. Clientes, Veículos e Serviços utilizam dados reais.
+              Dashboard financeiro integrado aos dados do sistema.
             </p>
           </div>
         </div>

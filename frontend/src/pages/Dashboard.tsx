@@ -1,4 +1,4 @@
-import {
+﻿import {
   ArrowDownLeft,
   ArrowUpRight,
   Wallet,
@@ -6,26 +6,30 @@ import {
   Clock3,
   ArrowRight,
 } from "lucide-react";
-import type { Dados, Servico } from "../types";
-import { financeiro, indicadores, moeda, data } from "../services/financeiro";
-import { Badge, Empty, PageHeader } from "../components/ui";
+import {
+  contarStatus,
+  moedaFinanceira as moeda,
+  type DashboardResumo,
+  type FinanceiroServico,
+} from "../services/dashboard";
+import { formatServicoDate as data } from "../services/servicos";
+import { Badge, Empty } from "../components/ui";
+
 export function Dashboard({
-  dados,
-  onNew,
-  onDetail,
+  resumo: totals,
+  servicos,
   onAll,
 }: {
-  dados: Dados;
-  onNew: () => void;
-  onDetail: (s: Servico) => void;
+  resumo: DashboardResumo;
+  servicos: FinanceiroServico[];
   onAll: () => void;
 }) {
-  const totals = indicadores(dados);
+  const statuses = contarStatus(servicos);
   const cards = [
     {
       label: "Receita total",
       value: moeda(totals.receita),
-      note: "Valores recebidos",
+      note: "Valor recebido registrado nos serviços",
       icon: ArrowDownLeft,
     },
     {
@@ -48,26 +52,24 @@ export function Dashboard({
     },
     { label: "Em andamento", value: totals.andamento, note: "Serviços em aberto", icon: Clock3 },
   ];
-  const recentes = [...dados.servicos].sort((a, b) => b.inicio.localeCompare(a.inicio)).slice(0, 6);
+  const recentes = [...servicos]
+    .sort((a, b) => b.inicio.localeCompare(a.inicio) || Number(b.id) - Number(a.id))
+    .slice(0, 6);
   return (
     <>
-      <PageHeader
-        eyebrow="VISÃO GERAL"
-        title="Tudo sob controle."
-        subtitle="Acompanhe os serviços e os resultados do seu escritório."
-        action="Novo serviço"
-        onAction={onNew}
-      />
       <div className="section-line">
         <span>
-          <span className="live-dot" />
-          Resumo do escritório
+          <span className="live-dot" /> Resumo do escritório
         </span>
         <span>Todo o período</span>
       </div>
       <section className="stats-grid" aria-label="Indicadores financeiros e operacionais">
         {cards.map((c, i) => (
-          <article className={`stat ${i === 2 ? "featured" : ""}`} key={c.label}>
+          <article
+            className={"stat " + (i === 2 ? "featured" : "")}
+            key={c.label}
+            aria-label={c.label}
+          >
             <div className="stat-top">
               <span>{c.label}</span>
               <c.icon size={18} />
@@ -81,7 +83,7 @@ export function Dashboard({
         <div className="panel-heading">
           <div>
             <h2>Serviços recentes</h2>
-            <p className="muted">Os últimos movimentos do seu escritório.</p>
+            <p className="muted">Serviços mais recentes pela data de início.</p>
           </div>
           <button className="text-button" onClick={onAll}>
             Ver todos <ArrowRight size={16} />
@@ -98,53 +100,39 @@ export function Dashboard({
                 <th className="numeric">Recebido</th>
                 <th className="numeric">Custo total</th>
                 <th className="numeric">Resultado líquido</th>
-                <th>
-                  <span className="sr-only">Ações</span>
-                </th>
               </tr>
             </thead>
             <tbody>
-              {recentes.map((s) => {
-                const f = financeiro(s, dados.despesas);
-                return (
-                  <tr key={s.id}>
-                    <td>
-                      <strong>{dados.clientes.find((c) => c.id === s.clienteId)?.nome}</strong>
-                      <small>{data(s.inicio)}</small>
-                    </td>
-                    <td>
-                      <span className="plate">
-                        {dados.veiculos.find((v) => v.id === s.veiculoId)?.placa}
-                      </span>
-                    </td>
-                    <td>{dados.tiposServico.find((t) => t.id === s.tipoServicoId)?.nome}</td>
-                    <td>
-                      <Badge status={s.status} />
-                    </td>
-                    <td className="numeric">{moeda(f.recebido)}</td>
-                    <td className="numeric muted">{moeda(f.custo)}</td>
-                    <td className={`numeric result ${f.resultado < 0 ? "negative" : ""}`}>
-                      {moeda(f.resultado)}
-                    </td>
-                    <td>
-                      <button
-                        className="icon-button"
-                        aria-label={`Detalhes do serviço de ${dados.clientes.find((c) => c.id === s.clienteId)?.nome}`}
-                        onClick={() => onDetail(s)}
-                      >
-                        <ArrowUpRight size={17} />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+              {recentes.map((s) => (
+                <tr key={s.id}>
+                  <td>
+                    <strong>{s.cliente}</strong>
+                    <small>
+                      {data(s.inicio)} · Serviço #{s.id}
+                    </small>
+                  </td>
+                  <td>
+                    <span className="plate">{s.placa}</span>
+                  </td>
+                  <td>{s.tipo}</td>
+                  <td>
+                    <Badge status={s.status} />
+                  </td>
+                  <td className="numeric">{moeda(s.recebido)}</td>
+                  <td className="numeric muted">{moeda(s.custo)}</td>
+                  <td
+                    className={"numeric result " + (s.resultado.startsWith("-") ? "negative" : "")}
+                  >
+                    {moeda(s.resultado)}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
-        {!recentes.length && <Empty />}
+        {!servicos.length && <Empty text="Nenhum serviço cadastrado." />}
         <div className="table-footer">
-          {recentes.length} de {totals.quantidade} serviços
-          <span>Ordenados pela data de início</span>
+          {recentes.length} de {servicos.length} serviços<span>Ordenados pela data de início</span>
         </div>
       </section>
       <div className="dashboard-bottom">
@@ -156,16 +144,16 @@ export function Dashboard({
             <h3>Uma visão completa dos seus resultados</h3>
             <p>
               Todos os valores recebidos e despesas compõem os indicadores, inclusive os de serviços
-              cancelados.
+              cancelados. Receita representa o valor recebido registrado no serviço, não um fluxo de
+              caixa por data de pagamento.
             </p>
           </div>
         </div>
-        <div className="small-summary">
-          <span>Organização que faz a diferença</span>
-          <strong>
-            {dados.clientes.length} clientes <span>·</span> {dados.veiculos.length} veículos
-          </strong>
-          <p>Seu escritório conectado a cada detalhe.</p>
+        <div className="small-summary" aria-label="Serviços por status">
+          <span>Serviços por status</span>
+          <p>Em andamento: {statuses.EM_ANDAMENTO}</p>
+          <p>Concluídos: {statuses.CONCLUIDO}</p>
+          <p>Cancelados: {statuses.CANCELADO}</p>
         </div>
       </div>
     </>

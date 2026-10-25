@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import type { Cliente, Dados, DespesaServico, Servico, Status, Veiculo } from "../types";
 import { Field, statusLabel } from "./ui";
+import { VeiculosError } from "../services/veiculos";
 const hoje = () => new Date().toLocaleDateString("en-CA");
 const texto = (f: FormData, key: string) => String(f.get(key) ?? "").trim();
 export function FormShell({
@@ -8,11 +9,13 @@ export function FormShell({
   onSave,
   onClose,
   view = false,
+  viewLabel = "Dados demonstrativos",
 }: {
   children: ReactNode;
   onSave: (f: FormData) => Promise<void>;
   onClose: () => void;
   view?: boolean;
+  viewLabel?: string;
 }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -40,7 +43,7 @@ export function FormShell({
         </p>
       )}
       <div className="form-footer">
-        <span className="muted">{view ? "Dados demonstrativos" : "* Campos obrigatórios"}</span>
+        <span className="muted">{view ? viewLabel : "* Campos obrigatórios"}</span>
         <button type="button" className="secondary" onClick={onClose}>
           {view ? "Fechar" : "Cancelar"}
         </button>
@@ -68,13 +71,16 @@ export function ClienteForm({
   return (
     <FormShell
       view={view}
+      viewLabel="Cliente cadastrado"
       onClose={close}
       onSave={async (f) => {
         await save({
-          id: item?.id ?? crypto.randomUUID(),
+          id: item?.id ?? "",
           tipoPessoa: tipo,
           nome: texto(f, "nome"),
-          documento: texto(f, "documento").replace(/\D/g, ""),
+          documento: texto(f, "documento")
+            .replace(/[.\/-]/g, "")
+            .toUpperCase(),
           telefone: texto(f, "telefone"),
           email: texto(f, "email"),
           nascimento: texto(f, "nascimento"),
@@ -123,28 +129,37 @@ export function VeiculoForm({
   close,
 }: {
   item?: Veiculo;
-  dados: Dados;
+  dados: Pick<Dados, "clientes">;
   view?: boolean;
   save: (v: Veiculo) => Promise<void>;
   close: () => void;
 }) {
+  const [fieldErrors, setFieldErrors] = useState<VeiculosError["fields"]>({});
   return (
     <FormShell
       view={view}
+      viewLabel="Veículo cadastrado"
       onClose={close}
       onSave={async (f) => {
-        await save({
-          id: item?.id ?? crypto.randomUUID(),
-          proprietarioId: texto(f, "proprietario"),
-          placa: texto(f, "placa")
-            .replace(/[^a-z0-9]/gi, "")
-            .toUpperCase(),
-          tipo: texto(f, "tipo"),
-          marca: texto(f, "marca"),
-          modelo: texto(f, "modelo"),
-          ano: Number(f.get("ano")) || null,
-          renavam: texto(f, "renavam"),
-        });
+        setFieldErrors({});
+        try {
+          await save({
+            id: item?.id ?? "",
+            proprietarioId: texto(f, "proprietario"),
+            placa: texto(f, "placa").toUpperCase(),
+            tipo: texto(f, "tipo"),
+            marca: texto(f, "marca"),
+            modelo: texto(f, "modelo"),
+            ano: texto(f, "ano") === "" ? null : Number(f.get("ano")),
+            renavam: texto(f, "renavam"),
+          });
+        } catch (error) {
+          if (error instanceof VeiculosError && Object.keys(error.fields).length) {
+            setFieldErrors(error.fields);
+            return;
+          }
+          throw error;
+        }
       }}
     >
       <Field full label="Proprietário *">
@@ -152,6 +167,11 @@ export function VeiculoForm({
           <option value="" disabled>
             Selecione o cliente proprietário
           </option>
+          {item && !dados.clientes.some((c) => c.id === item.proprietarioId) && (
+            <option value={item.proprietarioId} disabled>
+              Cliente #{item.proprietarioId} indisponível — selecione outro proprietário
+            </option>
+          )}
           {dados.clientes.map((c) => (
             <option value={c.id} key={c.id}>
               {c.nome}
@@ -162,12 +182,22 @@ export function VeiculoForm({
       <Field label="Placa *">
         <input
           name="placa"
+          aria-invalid={!!fieldErrors.placa}
+          aria-describedby={fieldErrors.placa ? "veiculo-placa-error" : undefined}
+          onChange={() => setFieldErrors((errors) => ({ ...errors, placa: undefined }))}
           required
+          pattern="[A-Za-z]{3}-?[0-9]{4}|[A-Za-z]{3}[0-9][A-Za-z][0-9]{2}"
+          title="Use ABC1234, ABC-1234 ou ABC1D23"
           maxLength={8}
           defaultValue={item?.placa}
           placeholder="ABC1D23"
           className="uppercase"
         />
+        {fieldErrors.placa && (
+          <span id="veiculo-placa-error" className="error" role="alert">
+            {fieldErrors.placa}
+          </span>
+        )}
       </Field>
       <Field label="Tipo de veículo *">
         <input
@@ -185,11 +215,21 @@ export function VeiculoForm({
         <input name="modelo" required maxLength={80} defaultValue={item?.modelo} />
       </Field>
       <Field label="Ano (opcional)">
-        <input name="ano" type="number" min="1886" max="2100" defaultValue={item?.ano ?? ""} />
+        <input
+          name="ano"
+          type="number"
+          min="1000"
+          max="9999"
+          step="1"
+          defaultValue={item?.ano ?? ""}
+        />
       </Field>
       <Field label="RENAVAM *">
         <input
           name="renavam"
+          aria-invalid={!!fieldErrors.renavam}
+          aria-describedby={fieldErrors.renavam ? "veiculo-renavam-error" : undefined}
+          onChange={() => setFieldErrors((errors) => ({ ...errors, renavam: undefined }))}
           required
           inputMode="numeric"
           pattern="[0-9]{11}"
@@ -197,6 +237,11 @@ export function VeiculoForm({
           maxLength={11}
           defaultValue={item?.renavam}
         />
+        {fieldErrors.renavam && (
+          <span id="veiculo-renavam-error" className="error" role="alert">
+            {fieldErrors.renavam}
+          </span>
+        )}
       </Field>
     </FormShell>
   );

@@ -48,4 +48,4 @@ export interface Dados {
   servicos: Servico[];
   despesas: DespesaServico[];
 }
-export type Pagina = "dashboard" | "clientes" | "veiculos" | "servicos";
+export type Pagina = "dashboard" | "clientes" | "veiculos" | "servicos" | "despesas";

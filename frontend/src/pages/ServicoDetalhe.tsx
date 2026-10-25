@@ -27,7 +27,7 @@ export function ServicoDetalhe({
     <>
       <button className="text-button back" onClick={back}>
         <ArrowLeft size={16} />
-        Voltar para serviços
+        Voltar para Dashboard
       </button>
       <PageHeader
         eyebrow="DETALHE DO SERVIÇO"
@@ -39,7 +39,7 @@ export function ServicoDetalhe({
           <Badge status={servico.status} />
           <button className="secondary" onClick={edit}>
             <Pencil size={16} />
-            Editar serviço
+            Abrir Serviços reais
           </button>
         </div>
         <div className="details-grid">

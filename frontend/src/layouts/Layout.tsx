@@ -4,6 +4,7 @@ import {
   Users,
   CarFront,
   ClipboardList,
+  Receipt,
   LogOut,
   Menu,
   X,
@@ -11,25 +12,41 @@ import {
   ArrowUpRight,
   Layers3,
 } from "lucide-react";
+import type { Usuario } from "../services/auth";
 import type { Pagina } from "../types";
 const links = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "clientes", label: "Clientes", icon: Users },
   { id: "veiculos", label: "Veículos", icon: CarFront },
   { id: "servicos", label: "Serviços", icon: ClipboardList },
+  { id: "despesas", label: "Despesas", icon: Receipt },
 ] as const;
 export function Layout({
   pagina,
   navigate,
   sair,
+  saindo,
+  usuario,
   children,
 }: {
   pagina: Pagina;
   navigate: (p: Pagina) => void;
   sair: () => void;
+  saindo: boolean;
+  usuario: Usuario;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const cadastro =
+    pagina === "clientes"
+      ? "Clientes"
+      : pagina === "veiculos"
+        ? "Veículos"
+        : pagina === "despesas"
+          ? "Despesas"
+          : pagina === "dashboard"
+            ? "Dashboard"
+            : "Serviços";
   return (
     <div className="app-shell">
       <a className="skip-link" href="#conteudo">
@@ -79,14 +96,15 @@ export function Layout({
         <div className="sidebar-bottom">
           <div className="demo-card">
             <span className="demo-dot" />
-            Ambiente de demonstração<p>Explore a gestão do seu escritório com dados fictícios.</p>
+            {cadastro} · Dados reais
+            <p>Informações consultadas no sistema.</p>
             <span className="demo-caption">
-              Alterações temporárias <ArrowUpRight size={13} />
+              Dados persistentes <ArrowUpRight size={13} />
             </span>
           </div>
-          <button className="exit" onClick={sair}>
+          <button className="exit" onClick={sair} disabled={saindo}>
             <LogOut size={17} />
-            Voltar ao login
+            {saindo ? "Saindo…" : "Sair"}
           </button>
           <div className="sidebar-footer">
             DespachanteControl <span>v0.1</span>
@@ -112,15 +130,15 @@ export function Layout({
             <span className="preview-tag">Prévia local</span>
             <span className="avatar">DC</span>
             <div className="desktop-only user-label">
-              <strong>Meu escritório</strong>
-              <span>Modo demonstração</span>
+              <strong>{usuario.nome}</strong>
+              <span>{cadastro} · Dados reais</span>
             </div>
           </div>
         </header>
         <main id="conteudo">{children}</main>
         <footer className="main-footer">
           <span>DespachanteControl · Gestão documental</span>
-          <span>Dados demonstrativos · Sem conexão com o banco</span>
+          <span>{cadastro} · Dados do sistema</span>
         </footer>
       </div>
     </div>

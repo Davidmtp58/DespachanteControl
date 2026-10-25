@@ -1,0 +1,34 @@
+# Local environment files and copies, at any depth.
+.env
+.env*
+*.env
+*.env.*
+*.env *
+!.env.example
+
+# Dependencies and generated artifacts; keep package-lock.json versioned.
+node_modules/
+dist/
+build/
+coverage/
+test-results/
+playwright-report/
+.npm-cache/
+*.tsbuildinfo
+*.log
+*.tmp
+*.temp
+*.bak
+*.old
+*~
+.DS_Store
+Thumbs.db
+
+# Private keys, certificates and database backup artifacts.
+*.pem
+*.key
+*.pfx
+*.p12
+*.mdf
+*.ldf
+*.trn

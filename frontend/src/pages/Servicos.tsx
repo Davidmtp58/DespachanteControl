@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Dados, Servico } from "../types";
+import type { DadosServicos, ServicoReal } from "../services/servicos";
 import {
   Badge,
   Empty,
@@ -9,15 +9,15 @@ import {
   SearchField,
   statusLabel,
 } from "../components/ui";
-import { data, financeiro, moeda } from "../services/financeiro";
+import { formatServicoDate, formatServicoMoney } from "../services/servicos";
 export function Servicos({
   dados,
   open,
   detail,
 }: {
-  dados: Dados;
-  open: (s?: Servico) => void;
-  detail: (s: Servico) => void;
+  dados: DadosServicos;
+  open: (s?: ServicoReal) => void;
+  detail: (s: ServicoReal) => void;
 }) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
@@ -41,8 +41,8 @@ export function Servicos({
         (!status || s.status === status) &&
         (!tipo || s.tipoServicoId === tipo) &&
         (!cliente || s.clienteId === cliente) &&
-        (!de || s.inicio >= de) &&
-        (!ate || s.inicio <= ate) &&
+        (!de || s.inicio.slice(0, 10) >= de) &&
+        (!ate || s.inicio.slice(0, 10) <= ate) &&
         `${c?.nome} ${v?.placa} ${v?.marca} ${v?.modelo}`
           .toLowerCase()
           .includes(query.toLowerCase())
@@ -123,35 +123,36 @@ export function Servicos({
                 <th>Conclusão</th>
                 <th>Status</th>
                 <th className="numeric">Recebido</th>
-                <th className="numeric">Custo total</th>
-                <th className="numeric">Resultado líquido</th>
                 <th>Ações</th>
               </tr>
             </thead>
             <tbody>
               {items.map((s) => {
                 const v = dados.veiculos.find((v) => v.id === s.veiculoId);
-                const f = financeiro(s, dados.despesas);
                 return (
                   <tr key={s.id}>
                     <td>
-                      <strong>{dados.clientes.find((c) => c.id === s.clienteId)?.nome}</strong>
+                      <strong>
+                        {dados.clientes.find((c) => c.id === s.clienteId)?.nome ??
+                          `Cliente #${s.clienteId} indisponível`}
+                      </strong>
                     </td>
                     <td>
                       {v?.marca} {v?.modelo}
-                      <small className="plate-inline">{v?.placa}</small>
+                      <small className="plate-inline">
+                        {v?.placa ?? `Veículo #${s.veiculoId} indisponível`}
+                      </small>
                     </td>
-                    <td>{dados.tiposServico.find((t) => t.id === s.tipoServicoId)?.nome}</td>
-                    <td>{data(s.inicio)}</td>
-                    <td>{data(s.conclusao)}</td>
+                    <td>
+                      {dados.tiposServico.find((t) => t.id === s.tipoServicoId)?.nome ??
+                        `Tipo #${s.tipoServicoId} indisponível`}
+                    </td>
+                    <td>{formatServicoDate(s.inicio)}</td>
+                    <td>{formatServicoDate(s.conclusao)}</td>
                     <td>
                       <Badge status={s.status} />
                     </td>
-                    <td className="numeric">{moeda(f.recebido)}</td>
-                    <td className="numeric">{moeda(f.custo)}</td>
-                    <td className={`numeric result ${f.resultado < 0 ? "negative" : ""}`}>
-                      {moeda(f.resultado)}
-                    </td>
+                    <td className="numeric">{formatServicoMoney(s.valorRecebido)}</td>
                     <td>
                       <RowActions
                         name={`serviço ${s.id}`}

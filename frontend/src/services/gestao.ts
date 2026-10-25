@@ -20,7 +20,9 @@ function validarValor(n: number, positivo = false) {
       : "O valor recebido deve ser igual ou maior que zero, até R$ 99.999.999,99.",
   );
 }
-// Adaptador temporário em memória. Substituir por HTTP quando a API Node.js existir.
+// Adaptador dos módulos demonstrativos. Seus clientes existem apenas para manter
+// os relacionamentos fictícios de serviços e dashboard. ClientesPage e VeiculosPage
+// usam a API separadamente; seus dados nunca são inseridos neste adaptador.
 // Não cria token, sessão, armazenamento persistente ou chamada de rede.
 export function criarMockService(): GestaoService {
   const dados = structuredClone(dadosIniciais);

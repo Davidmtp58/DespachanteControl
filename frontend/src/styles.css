@@ -409,6 +409,7 @@ main {
   margin-bottom: 28px;
 }
 .stat {
+  min-width: 0;
   background: #fff;
   border: 1px solid #e0e7e2;
   border-radius: 9px;
@@ -434,7 +435,8 @@ main {
   letter-spacing: -0.9px;
   font-weight: 600;
   margin: 13px 0 5px;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .stat-note {
   font-size: 9px;
@@ -1188,3 +1190,8 @@ main {
 .field > label {
   font-weight: 500;
 }
+.expenses-panel .filters { grid-template-columns: minmax(0, 1fr); }
+.expenses-panel select { min-width: 0; width: 100%; text-overflow: ellipsis; }
+.expense-service-cell { min-width: 230px; max-width: 380px; white-space: normal; }
+.expense-service-info { display: grid; gap: 5px; overflow-wrap: anywhere; }
+.expense-service-info > div { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }

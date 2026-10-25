@@ -5,7 +5,7 @@ export function Clientes({
   dados,
   open,
 }: {
-  dados: Dados;
+  dados: Pick<Dados, "clientes">;
   open: (item?: Cliente, view?: boolean) => void;
 }) {
   const [query, setQuery] = useState("");
@@ -73,11 +73,12 @@ export function Veiculos({
   dados,
   open,
 }: {
-  dados: Dados;
+  dados: Pick<Dados, "clientes" | "veiculos">;
   open: (item?: Veiculo, view?: boolean) => void;
 }) {
   const [query, setQuery] = useState("");
-  const owner = (id: string) => dados.clientes.find((c) => c.id === id)?.nome;
+  const owner = (id: string) =>
+    dados.clientes.find((c) => c.id === id)?.nome ?? `Cliente #${id} indisponível`;
   const items = dados.veiculos.filter((v) =>
     `${v.placa} ${v.marca} ${v.modelo} ${v.renavam} ${owner(v.proprietarioId)}`
       .toLocaleLowerCase()
