@@ -124,6 +124,8 @@ Builds geram `dist/`. O backend compilado inicia com `npm.cmd start`. O build do
 
 ## Estrutura
 
+**Observação sobre versionamento:** A estrutura apresentada resume os principais diretórios do projeto. Alguns arquivos auxiliares de configuração e testes foram omitidos para facilitar a leitura.
+
 - `database/`: modelagem T-SQL, seed de tipos, Views, índices, procedure e consultas.
 - `backend/src/`: API, autenticação, repositórios e diagnóstico.
 - `backend/tests/`: testes com banco simulado.
