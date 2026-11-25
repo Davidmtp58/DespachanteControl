@@ -1,16 +1,16 @@
 import { Router, json } from 'express';
-import { rateLimit } from 'express-rate-limit';
+import { rateLimit, type Store } from 'express-rate-limit';
 import type { AuthConfig } from '../config/auth.js';
 import type { AuthService } from '../services/auth-service.js';
 import { AuthController } from '../controllers/auth-controller.js';
 import { requireAuth, requireCsrf } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error-handler.js';
 
-export function authRoutes(service: AuthService, config: AuthConfig) {
+export function authRoutes(service: AuthService, config: AuthConfig, store?: Store) {
   const router = Router();
   const controller = new AuthController(service, config);
   router.post('/login', rateLimit({ windowMs: config.loginWindowMs, limit: config.loginLimit,
-    standardHeaders: 'draft-8', legacyHeaders: false,
+    standardHeaders: 'draft-8', legacyHeaders: false, store, passOnStoreError: false,
     handler: (_req, res) => { res.status(429).json({ error: { code: 'LOGIN_RATE_LIMIT', message: 'Muitas tentativas. Tente novamente mais tarde.' } }); },
   }), (req, _res, next) => {
     if (req.get('X-Requested-With') !== 'DespachanteControl' || !req.is('application/json')) {

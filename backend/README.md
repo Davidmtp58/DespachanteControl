@@ -1,5 +1,13 @@
 # Backend — Despachante Control
 
+**Migração incremental:** SQL Server continua padrão. A Etapa 3.1 adiciona
+PostgreSQL para Usuários/autenticação e Clientes; a Etapa 3.2A acrescenta Veículos,
+e a 3.2B Serviços e Tipos de Serviço. A 3.2C acrescenta Despesas com exclusão.
+A 3.2D acrescenta Dashboard/Financeiro usando as Views e função PostgreSQL. Consulte
+[POSTGRESQL.md](POSTGRESQL.md) para configuração, limitações e testes reais
+descartáveis, e [FINANCIAL-PARITY.md](FINANCIAL-PARITY.md) para evidências e limites da comparação.
+As instruções SQL Server abaixo continuam válidas nesse provedor.
+
 API REST com Node.js, TypeScript, Express 5 e `mssql` (driver Tedious). Inclui Clientes, Veículos, Serviços, Despesas, consultas financeiras e autenticação por sessão. DELETE existe somente para despesas. O frontend React está integrado às APIs reais. Não implementa migrations.
 
 **Autenticação obrigatória:** antes de iniciar, configure `SESSION_SECRET`. Consulte [AUTH.md](AUTH.md) para permissões mínimas, primeira conta e login seguro no PowerShell. As consultas de negócio abaixo exigem uma `$sessao` autenticada; execute-as dentro do exemplo de AUTH.md antes do logout, capturando respostas em variáveis. Gravações também exigem CSRF. Os health checks continuam públicos. O frontend utiliza autenticação real e as APIs de negócio.
@@ -378,3 +386,20 @@ Interpretação inicial (não equivale a diagnóstico definitivo):
 | `UNKNOWN` | Código ausente ou fora da lista permitida; nenhum conteúdo bruto é exposto. |
 
 Um `TimeoutError` sem código conhecido aparece como `UNKNOWN` com categoria `timeout`. Eventos correlacionados podem representar a mesma falha propagada por várias camadas, não várias indisponibilidades.
+
+## Modo hospedado
+
+Consulte [HOSTING.md](HOSTING.md) para o perfil APP_MODE=hosted, origem HTTPS unica, proxy restrito, build React pelo Express e variaveis Render/Azure. O padrao permanece local; nao altere o .env local para publicar. Sessoes em memoria sao exclusivas do piloto demonstrativo.
+# Tipos de veículo padronizados
+
+Novos veículos e alterações do tipo aceitam somente: Automóvel, Motocicleta,
+Motoneta, Caminhonete, Camioneta, Caminhão, Ônibus, Reboque / Semirreboque e Outros.
+Valores inválidos retornam HTTP 400 (`VALIDATION_ERROR`). A lista é validada na
+camada de serviços para ambos os provedores; `tipo_veiculo` continua VARCHAR(30).
+Não há migração nem atualização automática de dados existentes.
+
+Para compatibilidade, PUT pode manter um tipo antigo fora da lista somente quando
+ele corresponde ao valor atualmente armazenado no próprio veículo. GET permanece
+compatível. Depois de substituir o valor antigo por um padronizado, não é possível
+restaurá-lo pela API. O frontend mostra essa exceção como “valor anterior”. Atualize
+backend e frontend em conjunto e reinicie a API antes de validar a interface.

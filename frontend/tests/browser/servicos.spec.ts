@@ -1,3 +1,4 @@
+import { selectReference } from "./search-select-helper";
 import { test, expect, type Page } from "@playwright/test";
 import { mockAuth } from "./auth-mock";
 import { mockClientes } from "./clientes-mock";
@@ -36,11 +37,12 @@ test("cadastra para solicitante diferente do proprietário e edita preservando p
 }) => {
   const { servicos } = await setup(page);
   await page.getByRole("button", { name: "Novo serviço", exact: true }).click();
-  await page.getByLabel("Cliente solicitante *", { exact: true }).selectOption("10");
-  await expect(page.getByLabel("Veículo *", { exact: true })).toContainText(
+  await selectReference(page, "Cliente solicitante *", "10");
+  await page.getByLabel("Veículo *", { exact: true }).click();
+  await expect(page.getByRole("listbox", { name: "Veículo *", exact: true })).toContainText(
     "Proprietário: Cliente API",
   );
-  await page.getByLabel("Veículo *", { exact: true }).selectOption("5");
+  await selectReference(page, "Veículo *", "5");
   await page.getByLabel("Tipo de serviço *", { exact: true }).selectOption("2");
   await expect(page.getByLabel("Valor recebido (R$) *")).toHaveValue("0,00");
   await expect(page.getByLabel("Data de início")).toHaveAttribute("type", "date");

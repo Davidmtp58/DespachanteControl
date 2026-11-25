@@ -149,3 +149,7 @@ Arquivos de ambiente reais e cópias, dependências, builds, relatórios e tempo
 - Recuperação de senha, Kanban, agenda, SaaS e detalhamento por cards não estão implementados.
 
 F5, navegação e duplicidades de veículos foram corrigidos. A regra B2 agora existe também no backend; registros antigos concluídos sem data continuam consultáveis, mas precisam de data válida ao serem salvos como concluídos. Essas correções não encerram a investigação da instabilidade.
+
+## Piloto hospedado
+
+O modo hospedado e separado do desenvolvimento local. Configuracao, comandos de build conjunto, testes e limites: [backend/HOSTING.md](backend/HOSTING.md). Este suporte nao representa deploy realizado nem liberacao para dados reais.

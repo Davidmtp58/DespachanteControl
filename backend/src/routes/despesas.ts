@@ -2,10 +2,11 @@ import { Router, json, type RequestHandler } from 'express';
 import { DespesaController } from '../controllers/despesa-controller.js';
 import { DespesaService } from '../services/despesa-service.js';
 import type { DespesaRepository } from '../repositories/despesa-repository.js';
+import type { InputNormalizer } from '../services/unicode.js';
 
-export function despesaRoutes(repository: DespesaRepository) {
+export function despesaRoutes(repository: DespesaRepository, normalize?: InputNormalizer) {
   const router = Router();
-  const controller = new DespesaController(new DespesaService(repository));
+  const controller = new DespesaController(new DespesaService(repository, normalize));
   const noCache: RequestHandler = (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); };
   router.get('/servicos/:id/despesas', noCache, controller.byService);
   router.use('/despesas', noCache, json({ limit: '16kb' }));

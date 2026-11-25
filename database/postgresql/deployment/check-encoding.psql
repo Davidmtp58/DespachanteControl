@@ -1,0 +1,18 @@
+\set ON_ERROR_STOP on
+\pset pager off
+\conninfo
+BEGIN READ ONLY;
+SELECT current_database() AS database_name, current_user AS user_name,
+       current_setting('server_version') AS server_version,
+       current_setting('server_encoding') AS server_encoding,
+       current_setting('client_encoding') AS client_encoding;
+SELECT 1 / CASE WHEN current_setting('client_encoding') = 'UTF8'
+  AND current_setting('server_encoding') = 'UTF8'
+  AND encode(convert_to('Transferência', 'UTF8'), 'hex') = '5472616e73666572c3aa6e636961'
+  THEN 1 ELSE 0 END AS utf8_file_verified;
+SELECT to_regnamespace('app') AS app_schema,
+       to_regnamespace('dc_migrations') AS migration_schema;
+SELECT rolname FROM pg_roles
+WHERE rolname IN ('dc_migrator','dc_api','dc_runtime');
+COMMIT;
+\ir ../verification/supabase-preflight.sql

@@ -1,9 +1,10 @@
 import type { ClienteRepository } from '../repositories/cliente-repository.js';
 import { HttpError } from '../middleware/error-handler.js';
 import { clienteId, validateCliente } from './cliente-validation.js';
+import { unchanged, type InputNormalizer } from './unicode.js';
 
 export class ClienteService {
-  constructor(private readonly repository: ClienteRepository) {}
+  constructor(private readonly repository: ClienteRepository, private readonly normalize: InputNormalizer = unchanged) {}
   list() { return this.repository.list(); }
   async find(id: unknown) {
     const result = await this.repository.find(clienteId(id));
@@ -22,12 +23,12 @@ export class ClienteService {
     }
   }
   create(body: unknown) {
-    const data = validateCliente(body);
+    const data = validateCliente(this.normalize(body));
     return this.write(() => this.repository.create(data));
   }
   async update(id: unknown, body: unknown) {
     const key = clienteId(id);
-    const data = validateCliente(body);
+    const data = validateCliente(this.normalize(body));
     const result = await this.write(() => this.repository.update(key, data));
     if (!result) throw new HttpError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.');
     return result;

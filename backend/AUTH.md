@@ -1,5 +1,10 @@
 # Autenticação local
 
+**PostgreSQL (Etapa 3.1):** login/me/logout também utilizam app.usuario quando
+DB_PROVIDER=postgres, preservando sessões/bcrypt/CSRF. Os exemplos SSMS e o
+utilitário de primeira conta deste documento são exclusivos de SQL Server.
+Veja [POSTGRESQL.md](POSTGRESQL.md) para permissões e limites do bootstrap PG.
+
 A autenticação real está integrada ao frontend React. O backend permanece restrito a loopback. Não há cadastro público nem rota para administrar usuários. A tabela não possui papéis/perfis: todos os usuários ativos autenticados têm acesso às operações de negócio existentes. O usuário SQL `despachante_app` e o usuário humano da aplicação são identidades diferentes.
 
 ## Configuração
@@ -52,7 +57,9 @@ Depois de instalar as dependências (`npm.cmd ci`), em um PowerShell interativo 
 npm.cmd run user:prepare
 ```
 
-O utilitário pede nome, e-mail, senha e confirmação. As senhas não são exibidas e não são argumentos de linha de comando. Use uma senha única com pelo menos 12 caracteres e no máximo 72 bytes UTF-8 (limite do bcrypt). O e-mail é normalizado para minúsculas. É gerado bcrypt com salt aleatório e custo 12; a senha clara não é impressa nem gravada em arquivo. O processo precisa dela brevemente em memória para calcular o hash.
+O utilitário pede nome, e-mail, senha e confirmação. As senhas não são exibidas e não são argumentos de linha de comando. Use uma senha única com 8 a 12 caracteres (pontos de código Unicode). A senha não é normalizada nem tem espaços removidos. O e-mail é normalizado para minúsculas. É gerado bcrypt com salt aleatório e custo 12; a senha clara não é impressa nem gravada em arquivo. O processo precisa dela brevemente em memória para calcular o hash.
+
+Os dois procedimentos de primeira conta (SQL Server e PostgreSQL) compartilham essa validação. Não existem rotas de alteração ou recuperação de senha nesta versão; futuros fluxos de definição devem reutilizar a política. O login preserva a compatibilidade com senhas existentes. Erros de validação distinguem `PASSWORD_LENGTH`, `PASSWORD_CONFIRMATION_MISMATCH`, `INVALID_EMAIL` e `INVALID_NAME`, sem incluir os valores recebidos.
 
 O utilitário **não importa a conexão SQL, não lê `.env` e não executa comandos no banco**. Ele apenas imprime um bloco SQL contendo nome, e-mail e hash. Revise esse bloco e, somente quando decidir ativar a conta, execute-o no SSMS com sua conta administrativa. Não versione o bloco nem salve dados da conta no repositório.
 
@@ -80,7 +87,7 @@ Use `fetch` com `credentials: 'include'` no React, inclusive no login. Não arma
 
 Use o mesmo hostname para frontend e API (ambos `127.0.0.1` ou ambos `localhost`), mesmo com portas diferentes, para respeitar SameSite. A senha é enviada apenas no login; a aplicação não deve persistir a senha. O frontend utiliza estes endpoints, guarda CSRF somente em memória e recupera a sessão ao recarregar.
 
-As sessões e o limite de login ficam em memória neste processo. O armazenamento de sessões tem limpeza periódica e limite de 1000 sessões; reiniciar o backend encerra sessões e reinicia os limites. Essa estratégia é para o ambiente local atual. Antes de disponibilizar o sistema ou usar múltiplos processos, será necessário HTTPS e armazenamento compartilhado de sessões/limites. Referências: [Express session](https://expressjs.com/en/resources/middleware/session/) e [OWASP — armazenamento de senhas](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
+No servidor local, sessões e limite de login continuam em memória por padrão (limite de 1000 sessões e limpeza periódica); reiniciar encerra esse estado. `AUTH_STATE_STORE=postgres` permite compartilhamento com PostgreSQL após aplicar a migração 006 autorizada. A Netlify Function exige esse store, sem fallback para memória. Veja [AUTH-STATE.md](AUTH-STATE.md) para permissões, expiração, falhas 503 e roteiro de migração ainda não aplicado remotamente. HTTPS e homologação do proxy continuam necessários. Referências: [Express session](https://expressjs.com/en/resources/middleware/session/) e [OWASP — armazenamento de senhas](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
 
 ## Validação manual após a ativação autorizada
 
@@ -150,3 +157,7 @@ O exemplo acima encerra a sessão e limpa as variáveis. Para consultar os endpo
 ## Testes
 
 `npm.cmd test`, `npm.cmd run typecheck` e `npm.cmd run build` não requerem SQL Server nem `.env`. Os testes usam hashes e contas fictícios, login HTTP real contra repositório simulado e cookies/CSRF nas suítes anteriores. Cobrem senha inválida, conta inativa, sessão expirada/revogada, rotação, logout, CSRF/CORS, limitação de tentativas e queries parametrizadas. O teste de preparação de usuário apenas verifica o texto gerado e o hash; não executa SQL.
+
+## Autenticacao no piloto HTTPS
+
+Em APP_MODE=hosted, AUTH_ALLOWED_ORIGINS deve conter uma unica origem publica HTTPS exata e SESSION_COOKIE_SECURE=true e obrigatorio. TRUST_PROXY_HOPS=1 pressupoe ingresso exclusivo pelo proxy; conferir a topologia real antes da liberacao. CSRF, HttpOnly, SameSite=Strict e autenticacao de negocio sao preservados. Reinicios descartam sessoes e limites em memoria. Consulte [HOSTING.md](HOSTING.md); os exemplos locais deste documento continuam destinados ao ambiente local.

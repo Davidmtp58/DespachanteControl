@@ -1,0 +1,51 @@
+# Local preparation only. Shared auth requires reviewed migration 006 before deploy.
+[build]
+  base = "backend"
+  command = "npm ci --include=dev && npm --prefix ../frontend ci --include=dev && node ../scripts/build-hosted.mjs"
+  publish = "../frontend/dist"
+  functions = "dist/netlify-functions"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["express", "serverless-http", "express-session", "memorystore", "express-rate-limit", "bcryptjs", "pg", "mssql"]
+
+[[redirects]]
+  from = "/api"
+  to = "/.netlify/functions/api"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
+
+# Match the existing Express SPA route allowlist; missing assets stay 404.
+[[redirects]]
+  from = "/login"
+  to = "/index.html"
+  status = 200
+[[redirects]]
+  from = "/dashboard"
+  to = "/index.html"
+  status = 200
+[[redirects]]
+  from = "/clientes"
+  to = "/index.html"
+  status = 200
+[[redirects]]
+  from = "/veiculos"
+  to = "/index.html"
+  status = 200
+[[redirects]]
+  from = "/servicos"
+  to = "/index.html"
+  status = 200
+[[redirects]]
+  from = "/despesas"
+  to = "/index.html"
+  status = 200

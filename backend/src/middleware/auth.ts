@@ -13,10 +13,10 @@ export const COOKIE_NAME = 'dc.sid';
 export function destroySession(req: Request): Promise<void> {
   return new Promise((resolve, reject) => req.session.destroy(error => error ? reject(error) : resolve()));
 }
-export function sessionMiddleware(config: AuthConfig) {
+export function sessionMiddleware(config: AuthConfig, store?: session.Store) {
   const Store = createMemoryStore(session);
   return session({ name: COOKIE_NAME, secret: config.secret, resave: false, saveUninitialized: false,
-    store: new Store({ checkPeriod: 60000, max: 1000 }),
+    store: store ?? new Store({ checkPeriod: 60000, max: 1000 }),
     cookie: { httpOnly: true, sameSite: 'strict', secure: config.secureCookie, path: '/', maxAge: config.ttlMs } });
 }
 

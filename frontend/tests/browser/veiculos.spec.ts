@@ -3,6 +3,7 @@ import { mockAuth } from "./auth-mock";
 import { mockClientes } from "./clientes-mock";
 import { mockVeiculos } from "./veiculos-mock";
 import { mockServicos } from "./servicos-mock";
+import { tiposVeiculo } from "../../src/services/tipos-veiculo";
 async function setup(page: Page) {
   await mockAuth(page, true);
   const owners = await mockClientes(page);
@@ -12,6 +13,34 @@ async function setup(page: Page) {
   await page.getByRole("button", { name: "Veículos", exact: true }).click();
   return { owners, vehicles };
 }
+
+test("dropdown padronizado no cadastro e preservação explícita de tipo anterior na edição", async ({
+  page,
+}) => {
+  const { vehicles } = await setup(page);
+  await page.getByRole("button", { name: "Novo veículo", exact: true }).click();
+  const type = page.getByRole("combobox", { name: "Tipo de veículo *", exact: true });
+  await expect(type).toHaveValue("");
+  await expect(type.locator("option")).toHaveText(["Selecione o tipo de veículo", ...tiposVeiculo]);
+  for (const value of tiposVeiculo) {
+    await type.selectOption(value);
+    await expect(type).toHaveValue(value);
+  }
+  await page.getByRole("button", { name: "Cancelar", exact: true }).last().click();
+  vehicles.rows[0].tipo_veiculo = "Utilitário antigo";
+  await page.getByRole("button", { name: "Editar API1A23", exact: true }).click();
+  await expect(type).toHaveValue("Utilitário antigo");
+  await expect(type).toContainText("Utilitário antigo (valor anterior)");
+  await page.getByLabel("Ano (opcional)").fill("2022");
+  await page.getByRole("button", { name: "Salvar", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(vehicles.writes[0].body.tipo_veiculo).toBe("Utilitário antigo");
+  await page.getByRole("button", { name: "Editar API1A23", exact: true }).click();
+  await type.selectOption("Outros");
+  await page.getByRole("button", { name: "Salvar", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(vehicles.writes[1].body.tipo_veiculo).toBe("Outros");
+});
 test("lista, pesquisa por proprietário, consulta detalhes e isola Serviços", async ({ page }) => {
   await setup(page);
   await expect(page.locator("tbody tr")).toHaveCount(1);
@@ -26,10 +55,14 @@ test("lista, pesquisa por proprietário, consulta detalhes e isola Serviços", a
   await page.getByRole("button", { name: "Fechar", exact: true }).last().click();
   await page.getByRole("button", { name: "Serviços", exact: true }).click();
   await page.getByRole("button", { name: "Novo serviço", exact: true }).click();
-  await expect(page.getByLabel("Veículo *", { exact: true })).toContainText("API1A23");
-  await expect(page.getByLabel("Cliente solicitante *", { exact: true })).toContainText(
-    "Cliente API",
+  await page.getByLabel("Veículo *", { exact: true }).click();
+  await expect(page.getByRole("listbox", { name: "Veículo *", exact: true })).toContainText(
+    "API1A23",
   );
+  await page.getByLabel("Cliente solicitante *", { exact: true }).click();
+  await expect(
+    page.getByRole("listbox", { name: "Cliente solicitante *", exact: true }),
+  ).toContainText("Cliente API");
 });
 test("cadastra e edita com proprietário real, ano nulo e RENAVAM preservado", async ({ page }) => {
   const { vehicles, owners } = await setup(page);
@@ -44,7 +77,7 @@ test("cadastra e edita com proprietário real, ano nulo e RENAVAM preservado", a
   );
   await page.getByLabel("Proprietário *", { exact: true }).selectOption("9");
   await page.getByLabel("Placa *", { exact: true }).fill("tst-1234");
-  await page.getByLabel("Tipo de veículo *", { exact: true }).fill("Automóvel");
+  await page.getByLabel("Tipo de veículo *", { exact: true }).selectOption("Automóvel");
   await page.getByLabel("Marca *").fill("Volkswagen");
   await page.getByLabel("Modelo *").fill("Gol");
   await page.getByLabel("RENAVAM *").fill("00987654321");
@@ -115,7 +148,7 @@ for (const editing of [false, true]) {
       await page.getByLabel("Proprietário *", { exact: true }).selectOption("9");
       await page.getByLabel("Placa *", { exact: true }).fill("TST1A23");
       await page.getByLabel("RENAVAM *", { exact: true }).fill("00123456789");
-      await page.getByLabel("Tipo de veículo *", { exact: true }).fill("Automóvel");
+      await page.getByLabel("Tipo de veículo *", { exact: true }).selectOption("Automóvel");
       await page.getByLabel("Marca *", { exact: true }).fill("Volkswagen");
       await page.getByLabel("Modelo *", { exact: true }).fill("Gol");
     }

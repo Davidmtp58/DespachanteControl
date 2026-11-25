@@ -25,12 +25,13 @@ test("lista, pesquisa e consulta cliente real sem misturar mocks", async ({ page
   await page.getByRole("button", { name: "Fechar", exact: true }).last().click();
   await page.getByRole("button", { name: "Serviços", exact: true }).click();
   await page.getByRole("button", { name: "Novo serviço", exact: true }).click();
-  await expect(page.getByLabel("Cliente solicitante *", { exact: true })).toContainText(
-    "Cliente API",
-  );
-  await expect(page.getByLabel("Cliente solicitante *", { exact: true })).not.toContainText(
-    "Cliente financeiro API",
-  );
+  await page.getByLabel("Cliente solicitante *", { exact: true }).click();
+  await expect(
+    page.getByRole("listbox", { name: "Cliente solicitante *", exact: true }),
+  ).toContainText("Cliente API");
+  await expect(
+    page.getByRole("listbox", { name: "Cliente solicitante *", exact: true }),
+  ).not.toContainText("Cliente financeiro API");
 });
 test("cadastra e atualiza com snake_case e atualiza listagem", async ({ page }) => {
   const state = await setup(page);

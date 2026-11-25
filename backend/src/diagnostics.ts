@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
 const codes: Record<string, string> = {
+  '23505': 'unique', '23503': 'foreign_key', '23502': 'not_null', '23514': 'check',
+  '42501': 'permission', '28P01': 'authentication', '3D000': 'database', '42P01': 'schema',
+  '57014': 'timeout', '53300': 'capacity', '57P01': 'shutdown', '08006': 'network',
   ETIMEOUT: 'timeout', ESOCKET: 'network', ECONNRESET: 'network', ECONNREFUSED: 'network',
   EPIPE: 'network', ENOTFOUND: 'network', EAI_AGAIN: 'network', ELOGIN: 'authentication',
   EINSTLOOKUP: 'instance_lookup', ENOTOPEN: 'pool_state', ECONNCLOSED: 'pool_state',

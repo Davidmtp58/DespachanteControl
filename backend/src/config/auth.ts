@@ -1,3 +1,5 @@
+import { isHosted } from './deployment.js';
+
 export interface AuthConfig {
   secret: string;
   ttlMs: number;
@@ -8,6 +10,7 @@ export interface AuthConfig {
 }
 
 export function readAuthConfig(env: NodeJS.ProcessEnv = process.env): AuthConfig {
+  const hosted = isHosted(env);
   if (!/^[a-fA-F0-9]{64,}$/.test(env.SESSION_SECRET ?? '')) {
     throw new Error('Configure SESSION_SECRET com pelo menos 32 bytes aleatórios em hexadecimal.');
   }
@@ -18,11 +21,21 @@ export function readAuthConfig(env: NodeJS.ProcessEnv = process.env): AuthConfig
     return value;
   }
   const secure = env.SESSION_COOKIE_SECURE ?? 'false';
+  if (hosted && secure !== 'true') throw new Error('Modo hosted exige SESSION_COOKIE_SECURE=true.');
+  if (hosted && !env.AUTH_ALLOWED_ORIGINS) throw new Error('Modo hosted exige uma origem HTTPS pública exata.');
   if (!['true', 'false'].includes(secure)) throw new Error('SESSION_COOKIE_SECURE deve ser true ou false.');
   const origins = (env.AUTH_ALLOWED_ORIGINS ?? 'http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:3000,http://localhost:3000,http://127.0.0.1:3001,http://localhost:3001').split(',').map(s => s.trim());
   for (const origin of origins) {
     let url: URL;
     try { url = new URL(origin); } catch { throw new Error('AUTH_ALLOWED_ORIGINS inválido.'); }
+    if (hosted) {
+      if (origins.length !== 1 || url.protocol !== 'https:' || url.origin !== origin ||
+        url.hostname.includes('*') || !url.hostname.includes('.') ||
+        ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) || url.hostname.endsWith('.localhost')) {
+        throw new Error('Modo hosted exige uma origem HTTPS pública exata, sem caminho ou curingas.');
+      }
+      continue;
+    }
     if (!['http:', 'https:'].includes(url.protocol) || !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) || url.origin !== origin) {
       throw new Error('AUTH_ALLOWED_ORIGINS deve conter origens locais exatas, sem caminho.');
     }

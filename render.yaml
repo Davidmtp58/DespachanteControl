@@ -1,0 +1,55 @@
+# Local preparation only: initial service/Blueprint creation can trigger deployment.
+# Upload the CA Secret File and obtain separate authorization before deployment.
+services:
+  - type: web
+    name: despachante-control-hml
+    runtime: node
+    plan: free
+    autoDeployTrigger: 'off'
+    buildCommand: npm ci --prefix backend --include=dev && npm ci --prefix frontend --include=dev && node scripts/build-hosted.mjs
+    startCommand: npm --prefix backend start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: NODE_ENV
+        value: production
+      - key: APP_MODE
+        value: hosted
+      - key: HOST
+        value: 0.0.0.0
+      # PORT is supplied by Render; do not copy local PORT=3001.
+      - key: TRUST_PROXY_HOPS
+        value: '1'
+      - key: SESSION_COOKIE_SECURE
+        value: 'true'
+      - key: AUTH_STATE_STORE
+        value: postgres
+      - key: DB_PROVIDER
+        value: postgres
+      - key: AUTH_ALLOWED_ORIGINS
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: PG_HOST
+        sync: false
+      - key: PG_PORT
+        value: '5432'
+      - key: PG_DATABASE
+        sync: false
+      - key: PG_USER
+        sync: false
+      - key: PG_PASSWORD
+        sync: false
+      - key: PG_SSL_MODE
+        value: verify-full
+      - key: PG_SSL_CA_FILE
+        value: /etc/secrets/supabase-ca.crt
+      - key: PG_POOL_MAX
+        value: '3'
+      - key: PG_CONNECTION_TIMEOUT_MS
+        value: '5000'
+      - key: PG_IDLE_TIMEOUT_MS
+        value: '30000'
+      - key: PG_STATEMENT_TIMEOUT_MS
+        value: '15000'

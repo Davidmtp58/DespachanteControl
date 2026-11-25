@@ -278,3 +278,44 @@ Para validar manualmente, reinicie backend/frontend e use registros destinados a
 ## Publicação e operação
 
 MVP local em estabilização, sem prontidão para hospedagem pública ou uso operacional sem validações adicionais. A investigação da instabilidade SQL permanece aberta. Consulte o README da raiz para instalação completa e limites. A regra de conclusão obrigatória também é aplicada pelo backend. Os testes SQL de precisão B1 não reproduziram perda de centavos; ver backend/B1_PRECISAO.md. Arquivos .env reais e cópias são ignorados em qualquer pasta; não coloque segredos em variáveis do Vite, pois o bundle é público. Nenhum legado demonstrativo foi removido.
+
+## Build servido pelo Express
+
+O desenvolvimento Vite continua em 127.0.0.1:5173 com proxy para 3001. No piloto hospedado, o Express serve frontend/dist e /api na mesma origem HTTPS; nao ha URL de API nem segredo a inserir no bundle. Instrucoes: [../backend/HOSTING.md](../backend/HOSTING.md).
+
+Depois do build conjunto, execute `npx playwright test --config playwright.hosted.config.ts` nesta pasta para testar as rotas React servidas pelo Express com APIs simuladas. Essa suite usa a porta 4173 e nao acessa SQL Server.
+# Seleção pesquisável em Serviços
+
+Cadastro e edição de Serviços usam comboboxes para cliente solicitante e veículo.
+Clientes podem ser encontrados por parte do nome/razão social ou CPF/CNPJ, com ou
+sem pontuação. Veículos podem ser encontrados por placa ou modelo. A busca ignora
+acentos e caixa somente para comparação; não modifica os dados armazenados.
+
+Clique em uma sugestão ou use setas e Enter para selecionar. Escape fecha a lista;
+Tab avança sem aceitar texto como seleção. Digitar novamente invalida o ID anterior
+até uma nova escolha explícita. Nenhum cadastro é criado a partir do texto digitado.
+Na edição, IDs existentes são preservados; referências indisponíveis exigem seleção.
+
+As sugestões de veículos mostram placa, marca/modelo e proprietário. Os veículos
+do solicitante aparecem primeiro e identificados, sem excluir outros proprietários.
+Trocar o solicitante não altera o veículo escolhido nem grava mudanças em seu proprietário.
+
+## Volume e limite desta etapa
+
+Os GET `/api/clientes` e `/api/veiculos` atuais retornam arrays completos, sem
+parâmetros de busca/paginação. O formulário reutiliza essas referências, recarregadas
+ao abrir, sem nova requisição a cada tecla ou consulta individual por sugestão.
+Mostra até 20 sugestões por busca em um dropdown compacto, informando quando é
+necessário refinar, sem contagens técnicas permanentes. O limite é de renderização,
+não um corte dos dados pesquisáveis. O dropdown abre ao clicar, digitar ou usar as
+setas, não ao receber foco automaticamente. Após escolher, fecha e mostra apenas
+o nome do cliente ou placa/modelo no campo; os detalhes permanecem nas sugestões.
+Não há fallback fictício. Nenhuma medição do volume remoto foi realizada nesta etapa.
+
+A busca local foi testada com milhares de opções sintéticas, mas isso não elimina
+o custo de baixar todas as referências. Antes de escalar a operação, preparar busca
+paginada autenticada no backend (nome/documento e placa/modelo), com limites explícitos,
+ordenação estável, prioridade por solicitante sem exclusão de outros proprietários,
+e consulta por ID para hidratar seleções existentes. Incluir cancelamento de buscas
+obsoletas e testes de desempenho com volume representativo. Não adicionar `slice`
+silencioso às respostas nem assumir que as listagens atuais já são paginadas.

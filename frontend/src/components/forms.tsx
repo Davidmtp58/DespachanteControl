@@ -2,6 +2,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import type { Cliente, Dados, DespesaServico, Servico, Status, Veiculo } from "../types";
 import { Field, statusLabel } from "./ui";
 import { VeiculosError } from "../services/veiculos";
+import { tiposVeiculo } from "../services/tipos-veiculo";
 const hoje = () => new Date().toLocaleDateString("en-CA");
 const texto = (f: FormData, key: string) => String(f.get(key) ?? "").trim();
 export function FormShell({
@@ -200,13 +201,13 @@ export function VeiculoForm({
         )}
       </Field>
       <Field label="Tipo de veículo *">
-        <input
-          name="tipo"
-          required
-          maxLength={30}
-          defaultValue={item?.tipo}
-          placeholder="Ex.: Automóvel"
-        />
+        <select name="tipo" required defaultValue={item?.tipo ?? ""}>
+          <option value="" disabled>Selecione o tipo de veículo</option>
+          {item?.tipo && !(tiposVeiculo as readonly string[]).includes(item.tipo) && (
+            <option value={item.tipo}>{item.tipo} (valor anterior)</option>
+          )}
+          {tiposVeiculo.map((tipo) => <option key={tipo} value={tipo}>{tipo}</option>)}
+        </select>
       </Field>
       <Field label="Marca *">
         <input name="marca" required maxLength={50} defaultValue={item?.marca} />

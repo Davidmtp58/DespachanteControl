@@ -193,7 +193,7 @@ test('auth: configuração exige segredo e origens locais exatas', () => {
 });
 
 test('primeiro usuário: gera SQL com bcrypt 12, sem senha clara e sem executar banco', async () => {
-  const senha = 'SenhaFicticia!12345';
+  const senha = 'Ficticia!123';
   const result = await prepareFirstUser("Teste O'Nome", 'TESTE@example.com', senha, senha);
   assert.ok(!result.includes(senha));
   assert.match(result, /Teste O''Nome/);

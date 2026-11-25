@@ -1,4 +1,5 @@
 import type { config as SqlConfig } from 'mssql';
+import { isHosted } from './deployment.js';
 
 type Environment = Record<string, string | undefined>;
 
@@ -26,6 +27,10 @@ function required(env: Environment, key: string): string {
 }
 
 export function readServerConfig(env: Environment = process.env) {
+  if (isHosted(env)) {
+    if (env.HOST && env.HOST !== '0.0.0.0') throw new Error('HOST deve ser 0.0.0.0 no modo hosted.');
+    return { host: '0.0.0.0', port: integer(env, 'PORT', undefined, 65535) };
+  }
   const host = env.HOST?.trim() || '127.0.0.1';
   if (!['127.0.0.1', '::1', 'localhost'].includes(host)) {
     throw new Error('HOST deve ser um endereço de loopback nesta etapa local.');

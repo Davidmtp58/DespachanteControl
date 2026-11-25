@@ -1,12 +1,9 @@
+import { validateFirstAccount } from './account-validation.js';
 import bcrypt from 'bcryptjs';
 
 export async function prepareFirstUser(nome: string, email: string, senha: string, confirmation: string): Promise<string> {
   nome = nome.trim(); email = email.trim().toLowerCase();
-  if (!nome || nome.length > 120 || /[\x00-\x1f\x7f]/.test(nome) || email.length > 150 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    throw new Error('Nome ou e-mail inválido.');
-  }
-  if (senha !== confirmation) throw new Error('As senhas não coincidem.');
-  if (senha.length < 12 || Buffer.byteLength(senha, 'utf8') > 72) throw new Error('Use senha com pelo menos 12 caracteres e no máximo 72 bytes UTF-8.');
+  validateFirstAccount(nome, email, senha, confirmation);
   const hash = await bcrypt.hash(senha, 12);
   const quote = (value: string) => "N'" + value.replace(/'/g, "''") + "'";
   return `-- Execute somente no SSMS com sua conta administrativa, após revisão.

@@ -1,0 +1,166 @@
+-- REVIEW BEFORE RUNNING. Remote execution requires separate authorization.
+-- Use only the documented fresh psql process with explicit TLS verify-full.
+-- Do not paste fragments into another connection; do not retry automatically.
+\set ON_ERROR_STOP on
+\set ECHO none
+\set VERBOSITY terse
+\conninfo
+SELECT :'HOST' = 'aws-0-us-east-2.pooler.supabase.com'
+   AND :'PORT' = '5432'
+   AND :'DBNAME' = 'postgres'
+   AND :'USER' = 'postgres.zhonseyahndqlzoygolr' AS target_ok \gset
+\if :target_ok
+\else
+  \echo 'STOP: unexpected connection destination.'
+  DO $$ BEGIN RAISE EXCEPTION 'Unexpected connection destination'; END $$;
+\endif
+\prompt 'Type DELETE_TESTE_HML_F42F_10_ROWS to authorize this execution: ' confirmation
+SELECT :'confirmation' = 'DELETE_TESTE_HML_F42F_10_ROWS' AS authorized \gset
+\unset confirmation
+\if :authorized
+\else
+  \echo 'STOP: cleanup not authorized.'
+  DO $$ BEGIN RAISE EXCEPTION 'Cleanup not authorized'; END $$;
+\endif
+
+BEGIN;
+SET LOCAL statement_timeout = '15s';
+SET LOCAL lock_timeout = '5s';
+SET LOCAL idle_in_transaction_session_timeout = '60s';
+DO $$ BEGIN
+  IF current_database() <> 'postgres' OR session_user <> 'postgres'
+     OR current_user <> 'postgres'
+     OR NOT pg_has_role(session_user, 'dc_migrator', 'SET') THEN
+    RAISE EXCEPTION 'Administrative identity mismatch';
+  END IF;
+END $$;
+SET LOCAL ROLE dc_migrator;
+SET LOCAL search_path = pg_catalog;
+LOCK TABLE app.cliente, app.veiculo, app.servico, app.despesa_servico,
+           app.tipo_servico, app.usuario IN SHARE ROW EXCLUSIVE MODE;
+LOCK TABLE dc_migrations.history IN SHARE MODE;
+
+DO $$
+DECLARE
+  saved_users jsonb;
+  saved_types jsonb;
+  saved_history jsonb;
+  affected integer;
+BEGIN
+  IF current_user <> 'dc_migrator' THEN
+    RAISE EXCEPTION 'Cleanup role mismatch';
+  END IF;
+  -- Exact sets, not counts alone. NULL arrays (empty tables) also fail.
+  IF (SELECT array_agg(id_cliente ORDER BY id_cliente) FROM app.cliente)
+       IS DISTINCT FROM ARRAY[1,3]
+     OR (SELECT array_agg(id_veiculo ORDER BY id_veiculo) FROM app.veiculo)
+       IS DISTINCT FROM ARRAY[1,2]
+     OR (SELECT array_agg(id_servico ORDER BY id_servico) FROM app.servico)
+       IS DISTINCT FROM ARRAY[1,2,3]
+     OR (SELECT array_agg(id_despesa ORDER BY id_despesa) FROM app.despesa_servico)
+       IS DISTINCT FROM ARRAY[1,2,3]
+     OR (SELECT array_agg(id_usuario ORDER BY id_usuario) FROM app.usuario)
+       IS DISTINCT FROM ARRAY[1]
+     OR (SELECT count(*) FROM app.tipo_servico) <> 4
+     OR (SELECT count(*) FROM dc_migrations.history) <> 5 THEN
+    RAISE EXCEPTION 'Inventory mismatch; nothing may be deleted';
+  END IF;
+
+  -- Exact per-ID manifest confirmed by the operator. Missing/NULL values fail.
+  -- C collation makes marker/status checks case- and accent-sensitive.
+  IF NOT EXISTS (SELECT FROM app.cliente WHERE id_cliente = 1
+       AND nome_razao_social COLLATE "C" = 'TESTE_HML_F42F_CLIENTE_A_EDITADO')
+     OR NOT EXISTS (SELECT FROM app.cliente WHERE id_cliente = 3
+       AND nome_razao_social COLLATE "C" = 'TESTE_HML_F42F_EMPRESA_B')
+     OR NOT EXISTS (SELECT FROM app.veiculo WHERE id_veiculo = 1
+       AND modelo COLLATE "C" = 'TESTE_HML_F42F_V1' AND id_cliente_proprietario = 1)
+     OR NOT EXISTS (SELECT FROM app.veiculo WHERE id_veiculo = 2
+       AND modelo COLLATE "C" = 'TESTE_HML_F42F_V2' AND id_cliente_proprietario = 3)
+     OR NOT EXISTS (SELECT FROM app.servico WHERE id_servico = 1
+       AND observacoes COLLATE "C" = 'TESTE_HML_F42F_S1' AND id_cliente = 3 AND id_veiculo = 1
+       AND status COLLATE "C" = 'EM_ANDAMENTO' AND valor_recebido = 150.01::numeric)
+     OR NOT EXISTS (SELECT FROM app.servico WHERE id_servico = 2
+       AND observacoes COLLATE "C" = 'TESTE_HML_F42F_S2' AND id_cliente = 1 AND id_veiculo = 2
+       AND status COLLATE "C" = 'CONCLUIDO' AND valor_recebido = 350.51::numeric)
+     OR NOT EXISTS (SELECT FROM app.servico WHERE id_servico = 3
+       AND observacoes COLLATE "C" = 'TESTE_HML_F42F_S3' AND id_cliente = 1 AND id_veiculo = 1
+       AND status COLLATE "C" = 'CANCELADO' AND valor_recebido = 0.00::numeric)
+     OR NOT EXISTS (SELECT FROM app.despesa_servico WHERE id_despesa = 1
+       AND descricao COLLATE "C" = 'TESTE_HML_F42F_D1' AND id_servico = 1 AND valor = 10.02::numeric)
+     OR NOT EXISTS (SELECT FROM app.despesa_servico WHERE id_despesa = 2
+       AND descricao COLLATE "C" = 'TESTE_HML_F42F_D2' AND id_servico = 1 AND valor = 5.98::numeric)
+     OR NOT EXISTS (SELECT FROM app.despesa_servico WHERE id_despesa = 3
+       AND descricao COLLATE "C" = 'TESTE_HML_F42F_D3' AND id_servico = 3 AND valor = 5.00::numeric) THEN
+    RAISE EXCEPTION 'Exact per-ID manifest mismatch; nothing may be deleted';
+  END IF;
+
+  -- All business records must belong to this approved closed set.
+  IF EXISTS (SELECT FROM app.veiculo WHERE id_cliente_proprietario NOT IN (1,3))
+     OR EXISTS (SELECT FROM app.servico WHERE id_cliente NOT IN (1,3)
+                OR id_veiculo NOT IN (1,2)
+                OR NOT EXISTS (SELECT FROM app.tipo_servico t WHERE t.id_tipo_servico = app.servico.id_tipo_servico))
+     OR EXISTS (SELECT FROM app.despesa_servico WHERE id_servico NOT IN (1,2,3)) THEN
+    RAISE EXCEPTION 'Relationship mismatch';
+  END IF;
+
+  -- Refuse extra FKs, cascading actions, unvalidated constraints and delete
+  -- triggers/rules. Never traverse or delete unexpected dependent records.
+  IF (SELECT count(*) FROM pg_constraint WHERE contype = 'f' AND conrelid IN
+      ('app.veiculo'::regclass,'app.servico'::regclass,'app.despesa_servico'::regclass)) <> 5
+     OR EXISTS (
+       SELECT FROM pg_constraint WHERE contype = 'f'
+       AND (conrelid IN ('app.cliente'::regclass,'app.veiculo'::regclass,'app.servico'::regclass,'app.despesa_servico'::regclass)
+         OR confrelid IN ('app.cliente'::regclass,'app.veiculo'::regclass,'app.servico'::regclass,'app.despesa_servico'::regclass))
+       AND (NOT convalidated OR confdeltype <> 'a' OR
+         (conrelid, confrelid, conname::text) NOT IN (
+          ('app.veiculo'::regclass,'app.cliente'::regclass,'fk_veiculo_cliente'),
+          ('app.servico'::regclass,'app.cliente'::regclass,'fk_servico_cliente'),
+          ('app.servico'::regclass,'app.veiculo'::regclass,'fk_servico_veiculo'),
+          ('app.servico'::regclass,'app.tipo_servico'::regclass,'fk_servico_tipo'),
+          ('app.despesa_servico'::regclass,'app.servico'::regclass,'fk_despesa_servico'))))
+     OR EXISTS (SELECT FROM pg_trigger WHERE NOT tgisinternal AND (tgtype::integer & 8) <> 0
+       AND tgrelid IN ('app.cliente'::regclass,'app.veiculo'::regclass,'app.servico'::regclass,'app.despesa_servico'::regclass))
+     OR EXISTS (SELECT FROM pg_rewrite WHERE ev_type = '4' AND ev_class IN
+       ('app.cliente'::regclass,'app.veiculo'::regclass,'app.servico'::regclass,'app.despesa_servico'::regclass)) THEN
+    RAISE EXCEPTION 'Unexpected dependency or delete behavior';
+  END IF;
+
+  IF (SELECT count(*) FROM app.vw_dashboard_resumo WHERE receita_total = 500.52::numeric
+      AND custos_totais = 21.00::numeric AND resultado_liquido = 479.52::numeric
+      AND quantidade_servicos = 3 AND servicos_em_andamento = 1) <> 1 THEN
+    RAISE EXCEPTION 'Financial baseline mismatch';
+  END IF;
+  -- Snapshots remain inside the server; never print user contents or hashes.
+  SELECT jsonb_agg(to_jsonb(u) ORDER BY id_usuario) INTO saved_users FROM app.usuario u;
+  SELECT jsonb_agg(to_jsonb(t) ORDER BY id_tipo_servico) INTO saved_types FROM app.tipo_servico t;
+  SELECT jsonb_agg(to_jsonb(h) ORDER BY version) INTO saved_history FROM dc_migrations.history h;
+
+  DELETE FROM app.despesa_servico WHERE id_despesa IN (1,2,3);
+  GET DIAGNOSTICS affected = ROW_COUNT;
+  IF affected <> 3 THEN RAISE EXCEPTION 'Expense deletion count mismatch'; END IF;
+  DELETE FROM app.servico WHERE id_servico IN (1,2,3);
+  GET DIAGNOSTICS affected = ROW_COUNT;
+  IF affected <> 3 THEN RAISE EXCEPTION 'Service deletion count mismatch'; END IF;
+  DELETE FROM app.veiculo WHERE id_veiculo IN (1,2);
+  GET DIAGNOSTICS affected = ROW_COUNT;
+  IF affected <> 2 THEN RAISE EXCEPTION 'Vehicle deletion count mismatch'; END IF;
+  DELETE FROM app.cliente WHERE id_cliente IN (1,3);
+  GET DIAGNOSTICS affected = ROW_COUNT;
+  IF affected <> 2 THEN RAISE EXCEPTION 'Client deletion count mismatch'; END IF;
+
+  SET CONSTRAINTS ALL IMMEDIATE;
+  IF EXISTS (SELECT FROM app.cliente) OR EXISTS (SELECT FROM app.veiculo)
+     OR EXISTS (SELECT FROM app.servico) OR EXISTS (SELECT FROM app.despesa_servico)
+     OR saved_users IS DISTINCT FROM (SELECT jsonb_agg(to_jsonb(u) ORDER BY id_usuario) FROM app.usuario u)
+     OR saved_types IS DISTINCT FROM (SELECT jsonb_agg(to_jsonb(t) ORDER BY id_tipo_servico) FROM app.tipo_servico t)
+     OR saved_history IS DISTINCT FROM (SELECT jsonb_agg(to_jsonb(h) ORDER BY version) FROM dc_migrations.history h)
+     OR (SELECT count(*) FROM app.vw_dashboard_resumo WHERE receita_total = 0::numeric
+       AND custos_totais = 0::numeric AND resultado_liquido = 0::numeric
+       AND quantidade_servicos = 0 AND servicos_em_andamento = 0) <> 1 THEN
+    RAISE EXCEPTION 'Post-cleanup verification failed';
+  END IF;
+END $$;
+-- All checks above occur before commit; any failure stops this fresh psql process.
+COMMIT;
+\echo 'Cleanup committed: 3 expenses, 3 services, 2 vehicles, 2 clients.'
+\echo 'User 1, service types and migration history preserved. Run read-only verification.'

@@ -1,3 +1,4 @@
+import { selectReference } from "./search-select-helper";
 import { test, expect, type Page } from "@playwright/test";
 import { mockAuth } from "./auth-mock";
 import { mockClientes } from "./clientes-mock";
@@ -23,20 +24,21 @@ test("atalho do Dashboard abre formulário real com todos os oito clientes da AP
   const clientes = await setup(page);
   const response = page.waitForResponse((r) => new URL(r.url()).pathname === "/api/clientes");
   await page.getByRole("button", { name: "Novo serviço", exact: true }).click();
+  await page.getByLabel("Cliente solicitante *", { exact: true }).click();
   await expect(
-    page.getByLabel("Cliente solicitante *", { exact: true }).locator("option"),
-  ).toHaveCount(9);
+    page.getByRole("listbox", { name: "Cliente solicitante *", exact: true }).getByRole("option"),
+  ).toHaveCount(8);
   expect((await (await response).json()).length).toBe(8);
   await expect(page.getByRole("dialog")).toContainText("Cadastro de Serviços");
   for (const c of clientes.rows)
     await expect(
       page
-        .getByLabel("Cliente solicitante *", { exact: true })
-        .locator(`option[value="${c.id_cliente}"]`),
-    ).toHaveText(c.nome_razao_social);
-  await page.getByLabel("Cliente solicitante *", { exact: true }).selectOption("16");
-  await page.getByLabel("Veículo *", { exact: true }).selectOption("5");
-  await expect(page.getByLabel("Cliente solicitante *", { exact: true })).toHaveValue("16");
+        .getByRole("listbox", { name: "Cliente solicitante *", exact: true })
+        .locator(`[role="option"][data-value="${c.id_cliente}"]`),
+    ).toContainText(c.nome_razao_social);
+  await selectReference(page, "Cliente solicitante *", "16");
+  await selectReference(page, "Veículo *", "5");
+  await expect(page.locator('input[name="cliente"]')).toHaveValue("16");
 });
 test("cadastro e edição pelo menu incluem novos clientes após carregamento inicial", async ({
   page,
@@ -50,15 +52,17 @@ test("cadastro e edição pelo menu incluem novos clientes após carregamento in
     nome_razao_social: "Cliente adicionado depois",
   });
   await page.getByRole("button", { name: "Novo serviço", exact: true }).click();
+  await page.getByLabel("Cliente solicitante *", { exact: true }).click();
   await expect(
-    page.getByLabel("Cliente solicitante *", { exact: true }).locator("option"),
-  ).toHaveCount(10);
+    page.getByRole("listbox", { name: "Cliente solicitante *", exact: true }).getByRole("option"),
+  ).toHaveCount(9);
   await page.getByRole("button", { name: "Cancelar", exact: true }).click();
   await page.getByRole("button", { name: "Editar serviço 7", exact: true }).click();
+  await page.getByLabel("Cliente solicitante *", { exact: true }).click();
   await expect(
-    page.getByLabel("Cliente solicitante *", { exact: true }).locator("option"),
-  ).toHaveCount(10);
-  await page.getByLabel("Cliente solicitante *", { exact: true }).selectOption("30");
+    page.getByRole("listbox", { name: "Cliente solicitante *", exact: true }).getByRole("option"),
+  ).toHaveCount(9);
+  await selectReference(page, "Cliente solicitante *", "30");
   await page.getByRole("button", { name: "Salvar", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.locator("tbody")).toContainText("Cliente adicionado depois");

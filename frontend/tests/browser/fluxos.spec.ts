@@ -45,7 +45,7 @@ test("percorre login, cadastros, filtros, serviço e despesas", async ({ page })
   await page.getByRole("button", { name: "Novo veículo", exact: true }).click();
   await page.getByLabel("Proprietário *", { exact: true }).selectOption("9");
   await page.getByLabel("Placa *", { exact: true }).fill("TST1A23");
-  await page.getByLabel("Tipo de veículo *", { exact: true }).fill("Automóvel");
+  await page.getByLabel("Tipo de veículo *", { exact: true }).selectOption("Automóvel");
   await page.getByLabel("Marca *", { exact: true }).fill("Fiat");
   await page.getByLabel("Modelo *", { exact: true }).fill("Argo");
   await page.getByLabel("RENAVAM *", { exact: true }).fill("11111111111");

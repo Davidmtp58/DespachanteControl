@@ -1,0 +1,109 @@
+-- Review only; remote execution requires separate authorization.
+-- Use apply-006.ps1: it pins the actual libpq destination/TLS and verifies files.
+\set ON_ERROR_STOP on
+\set VERBOSITY terse
+\set ECHO none
+-- Client TLS is enforced by libpq in apply-006.ps1 (verify-full + pinned CA).
+-- Report the SAME connection used below; this is not a substitute for verify-full.
+\conninfo
+SELECT :'HOST' = 'aws-0-us-east-2.pooler.supabase.com'
+   AND :'PORT' = '5432' AND :'DBNAME' = 'postgres'
+   AND :'USER' = 'postgres.zhonseyahndqlzoygolr' AS destination_ok \gset
+\if :destination_ok
+\else
+DO $$ BEGIN RAISE EXCEPTION 'Unexpected connection destination'; END $$;
+\endif
+
+BEGIN;
+SET LOCAL statement_timeout = '15s';
+SET LOCAL lock_timeout = '5s';
+SET LOCAL idle_in_transaction_session_timeout = '60s';
+DO $$ BEGIN
+  IF current_database() <> 'postgres' OR session_user <> 'postgres' OR current_user <> 'postgres' THEN
+    RAISE EXCEPTION 'Unexpected administrative identity';
+  END IF;
+  -- pg_stat_ssl observes the pooler-to-database hop, not client-to-pooler TLS.
+END $$;
+SELECT pg_advisory_xact_lock(74102901);
+SET LOCAL ROLE dc_migrator;
+LOCK TABLE dc_migrations.history IN SHARE ROW EXCLUSIVE MODE;
+DO $$ BEGIN
+  IF current_user <> 'dc_migrator' OR to_regnamespace('app') IS NULL
+     OR to_regnamespace('dc_auth') IS NOT NULL THEN
+    RAISE EXCEPTION 'Unexpected role/schema state; no retry';
+  END IF;
+  IF (SELECT count(*) FROM dc_migrations.history) <> 5 OR EXISTS (
+    SELECT 1 FROM (VALUES
+      ('001_schema.sql','a20e471b73ad89f8a57acd6d66ab560b8f89df01091e745289c9e4ebc8865242'),
+      ('002_financeiro.sql','d6d98b15b61e5e97f4845e032700ea212eb56806586e255b88dfee20d0388798'),
+      ('003_tipos_servico.sql','3c7b24938edf58d6ecf9ec35253ca7d50e7b4b483528c55ff5095cc71637a760'),
+      ('004_permissoes.sql','d5ffc65c7b2a0039e164d36d9d9c1896bb70b35be5f57cf28cd7ba3b0f1cc637'),
+      ('005_unicode_nfc.sql','9b8d22a45719869825cc0689ff8a3b521732668d77397f0c1b8ad0ef3daaf5d7')
+    ) expected(version,checksum)
+    LEFT JOIN dc_migrations.history actual USING(version,checksum)
+    WHERE actual.version IS NULL
+  ) THEN RAISE EXCEPTION 'Migration history mismatch or 006 already applied'; END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname IN ('dc_api','dc_runtime','dc_migrator')
+    AND (rolsuper OR rolcreaterole OR rolcreatedb OR rolbypassrls OR rolreplication))
+    OR NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='dc_runtime' AND rolcanlogin)
+    OR NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='dc_api' AND NOT rolcanlogin)
+    OR NOT pg_has_role('dc_runtime','dc_api','USAGE') THEN
+    RAISE EXCEPTION 'Unexpected runtime privileges';
+  END IF;
+  IF (SELECT relowner FROM pg_class WHERE oid='dc_migrations.history'::regclass)
+    <> 'dc_migrator'::regrole THEN RAISE EXCEPTION 'Unexpected history owner'; END IF;
+END $$;
+
+\ir ../migrations/006_auth_state.sql
+INSERT INTO dc_migrations.history(version,checksum) VALUES
+('006_auth_state.sql','cdbb65fe66120cf7c7408475d700a9620923ec6d5d98d73ea0c48e9b5e8ef70c');
+
+DO $$
+DECLARE role_name text; table_name text; permission_name text;
+BEGIN
+  IF (SELECT nspowner FROM pg_namespace WHERE nspname='dc_auth') <> 'dc_migrator'::regrole
+    OR EXISTS (SELECT 1 FROM pg_class WHERE relnamespace='dc_auth'::regnamespace
+      AND relowner <> 'dc_migrator'::regrole)
+    OR (SELECT count(*) FROM pg_class WHERE relnamespace='dc_auth'::regnamespace AND relkind='r') <> 2
+    OR (SELECT count(*) FROM pg_index WHERE indrelid IN ('dc_auth.sessions'::regclass,'dc_auth.login_limits'::regclass)
+      AND indisvalid AND indisready) <> 4
+    OR EXISTS (SELECT 1 FROM pg_constraint WHERE connamespace='dc_auth'::regnamespace AND NOT convalidated)
+    OR NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid='dc_auth.sessions'::regclass
+      AND attname='revoked' AND atttypid='boolean'::regtype AND attnotnull AND NOT attisdropped)
+    OR EXISTS (SELECT 1 FROM dc_auth.sessions) OR EXISTS (SELECT 1 FROM dc_auth.login_limits)
+    OR (SELECT count(*) FROM dc_migrations.history) <> 6 THEN
+    RAISE EXCEPTION 'Post-migration structure/ownership/history mismatch';
+  END IF;
+  FOREACH role_name IN ARRAY ARRAY['dc_api','dc_runtime'] LOOP
+    IF NOT has_schema_privilege(role_name,'dc_auth','USAGE')
+      OR has_schema_privilege(role_name,'dc_auth','CREATE') THEN
+      RAISE EXCEPTION 'Unexpected schema privileges';
+    END IF;
+    FOREACH table_name IN ARRAY ARRAY['dc_auth.sessions','dc_auth.login_limits'] LOOP
+      FOREACH permission_name IN ARRAY ARRAY['SELECT','INSERT','UPDATE','DELETE'] LOOP
+        IF NOT has_table_privilege(role_name,table_name,permission_name)
+          OR has_table_privilege(role_name,table_name,permission_name || ' WITH GRANT OPTION') THEN
+          RAISE EXCEPTION 'Unexpected runtime DML privileges';
+        END IF;
+      END LOOP;
+      IF has_table_privilege(role_name,table_name,'TRUNCATE,REFERENCES,TRIGGER,MAINTAIN') THEN
+        RAISE EXCEPTION 'Excess runtime privileges';
+      END IF;
+    END LOOP;
+  END LOOP;
+  IF EXISTS (SELECT 1 FROM pg_namespace n, LATERAL aclexplode(n.nspacl) a
+    WHERE n.nspname='dc_auth' AND a.grantee=0)
+    OR EXISTS (SELECT 1 FROM pg_class c, LATERAL aclexplode(c.relacl) a
+      WHERE c.relnamespace='dc_auth'::regnamespace AND a.grantee=0) THEN
+    RAISE EXCEPTION 'PUBLIC access detected';
+  END IF;
+  FOR role_name IN SELECT rolname FROM pg_roles WHERE rolname IN ('anon','authenticated','service_role') LOOP
+    IF has_schema_privilege(role_name,'dc_auth','USAGE,CREATE')
+      OR has_table_privilege(role_name,'dc_auth.sessions','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN')
+      OR has_table_privilege(role_name,'dc_auth.login_limits','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN') THEN
+      RAISE EXCEPTION 'Data API role access detected';
+    END IF;
+  END LOOP;
+END $$;
+COMMIT;
+\echo Migration 006 committed. No business records modified.

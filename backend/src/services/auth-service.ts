@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { unchanged, type InputNormalizer } from './unicode.js';
 import { createHash, randomBytes } from 'node:crypto';
 import { HttpError } from '../middleware/error-handler.js';
 import type { UsuarioPublico, UsuarioRecord, UsuarioRepository } from '../repositories/usuario-repository.js';
@@ -11,9 +12,9 @@ export function publicUser(user: UsuarioRecord): UsuarioPublico {
 export const credentialVersion = (user: UsuarioRecord) => createHash('sha256').update(user.senha_hash).digest('hex');
 
 export class AuthService {
-  constructor(private readonly repository: UsuarioRepository) {}
+  constructor(private readonly repository: UsuarioRepository, private readonly normalize: InputNormalizer = unchanged) {}
   async login(body: unknown): Promise<UsuarioRecord> {
-    const data = body as { email?: unknown; senha?: unknown } | null;
+    const data = this.normalize(body) as { email?: unknown; senha?: unknown } | null;
     if (!data || typeof data.email !== 'string' || typeof data.senha !== 'string' ||
         !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim()) || data.email.trim().length > 150 ||
         !data.senha.length || Buffer.byteLength(data.senha, 'utf8') > 72) throw unauthorized();

@@ -1,10 +1,11 @@
 import { HttpError } from '../middleware/error-handler.js';
+import { unchanged, type InputNormalizer } from './unicode.js';
 import type { VeiculoRepository } from '../repositories/veiculo-repository.js';
 import { routeId } from './validation.js';
-import { validateVeiculo, type VeiculoInput } from './veiculo-validation.js';
+import { validateVeiculo, validateTipoVeiculo, type VeiculoInput } from './veiculo-validation.js';
 
 export class VeiculoService {
-  constructor(private readonly repository: VeiculoRepository) {}
+  constructor(private readonly repository: VeiculoRepository, private readonly normalize: InputNormalizer = unchanged) {}
   list() { return this.repository.list(); }
   async find(id: unknown) {
     const vehicle = await this.repository.find(routeId(id, 'veículo'));
@@ -27,26 +28,29 @@ export class VeiculoService {
     try { return await operation(); }
     catch (error) {
       const number = (error as { number?: number } | null)?.number;
-      if (number === 2601 || number === 2627) {
+      const pg = error as { code?: string; constraint?: string } | null;
+      const unique = pg?.code === '23505' && ['uq_veiculo_placa', 'uq_veiculo_renavam'].includes(pg.constraint ?? '');
+      if (number === 2601 || number === 2627 || unique) {
         // UNIQUE remains authoritative when another request wins the race.
         let identified: HttpError | undefined;
         try { identified = await this.conflictError(data, id); } catch { /* Safe fallback if lookup fails. */ }
         throw identified ?? new HttpError(409, 'DUPLICATE_VEHICLE', 'Placa ou RENAVAM já cadastrado.');
       }
       // A FK protege também contra remoção concorrente do proprietário após a consulta.
-      if (number === 547) throw new HttpError(400, 'OWNER_NOT_FOUND', 'Cliente proprietário não encontrado.');
+      if (number === 547 || (pg?.code === '23503' && pg.constraint === 'fk_veiculo_cliente')) throw new HttpError(400, 'OWNER_NOT_FOUND', 'Cliente proprietário não encontrado.');
       throw error;
     }
   }
   async create(body: unknown) {
-    const data = validateVeiculo(body);
+    const data = validateVeiculo(this.normalize(body));
     await this.checkOwner(data.id_cliente_proprietario);
     return this.write(data, undefined, () => this.repository.create(data));
   }
   async update(id: unknown, body: unknown) {
     const key = routeId(id, 'veículo');
-    const data = validateVeiculo(body);
-    await this.find(id);
+    const data = validateVeiculo(this.normalize(body), true);
+    const existing = await this.find(id);
+    validateTipoVeiculo(data.tipo_veiculo, existing.tipo_veiculo);
     await this.checkOwner(data.id_cliente_proprietario);
     const vehicle = await this.write(data, key, () => this.repository.update(key, data));
     if (!vehicle) throw new HttpError(404, 'VEHICLE_NOT_FOUND', 'Veículo não encontrado.');

@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { SearchSelect } from "./SearchSelect";
+import { searchKey } from "../services/selection-search";
+import { useMemo, useState } from "react";
 import { moneyInput, moneyFromInput, moneyDigitsInput } from "../services/servicos";
 import type { Status } from "../types";
 import type { ReferenciasServico, ServicoReal } from "../services/servicos";
@@ -22,6 +24,28 @@ export function ServicoRealForm({
 }) {
   const [status, setStatus] = useState<Status>(item?.status ?? "EM_ANDAMENTO");
   const [valor, setValor] = useState(() => moneyInput(item?.valorRecebido ?? "0.00"));
+  const [clienteId, setClienteId] = useState(item?.clienteId ?? "");
+  const [veiculoId, setVeiculoId] = useState(item?.veiculoId ?? "");
+  const clientes = useMemo(
+    () =>
+      dados.clientes.map((c) => ({
+        id: c.id,
+        label: `${c.nome} · ${c.documento}`,
+        selectedLabel: c.nome,
+        search: [searchKey(c.nome), searchKey(c.documento)],
+      })),
+    [dados.clientes],
+  );
+  const veiculos = useMemo(() => {
+    const owners = new Map(dados.clientes.map((c) => [c.id, c.nome]));
+    return dados.veiculos.map((v) => ({
+      id: v.id,
+      label: `${v.placa} · ${v.marca} ${v.modelo} · Proprietário: ${owners.get(v.proprietarioId) ?? `Cliente #${v.proprietarioId} indisponível`}`,
+      selectedLabel: `${v.placa} · ${v.modelo}`,
+      search: [searchKey(v.placa), searchKey(v.modelo)],
+      preferred: !!clienteId && v.proprietarioId === clienteId,
+    }));
+  }, [dados.clientes, dados.veiculos, clienteId]);
   return (
     <FormShell
       onClose={close}
@@ -40,43 +64,26 @@ export function ServicoRealForm({
         });
       }}
     >
-      <Field full label="Cliente solicitante *">
-        <select name="cliente" required defaultValue={item?.clienteId ?? ""}>
-          <option value="" disabled>
-            Selecione o solicitante
-          </option>
-          {item && !dados.clientes.some((c) => c.id === item.clienteId) && (
-            <option value={item.clienteId} disabled>
-              Cliente indisponível — selecione outro
-            </option>
-          )}
-          {dados.clientes.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.nome}
-            </option>
-          ))}
-        </select>
-      </Field>
-      <Field full label="Veículo *">
-        <select name="veiculo" required defaultValue={item?.veiculoId ?? ""}>
-          <option value="" disabled>
-            Selecione o veículo
-          </option>
-          {item && !dados.veiculos.some((v) => v.id === item.veiculoId) && (
-            <option value={item.veiculoId} disabled>
-              Veículo indisponível — selecione outro
-            </option>
-          )}
-          {dados.veiculos.map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.placa} · {v.marca} {v.modelo} · Proprietário:{" "}
-              {dados.clientes.find((c) => c.id === v.proprietarioId)?.nome ??
-                `Cliente #${v.proprietarioId} indisponível`}
-            </option>
-          ))}
-        </select>
-        <small>O solicitante pode ser diferente do proprietário do veículo.</small>
-      </Field>
+      <SearchSelect
+        label="Cliente solicitante *"
+        name="cliente"
+        options={clientes}
+        value={clienteId}
+        onChange={setClienteId}
+        placeholder="Pesquise por nome, razão social ou CPF/CNPJ"
+      />
+      <SearchSelect
+        label="Veículo *"
+        name="veiculo"
+        options={veiculos}
+        value={veiculoId}
+        onChange={setVeiculoId}
+        placeholder="Pesquise por placa ou modelo"
+      />
+      <small className="full">
+        O solicitante pode ser diferente do proprietário do veículo. Mudar o solicitante não altera
+        o veículo selecionado nem seu proprietário.
+      </small>
       <Field label="Tipo de serviço *">
         <select name="tipo" required defaultValue={item?.tipoServicoId ?? ""}>
           <option value="" disabled>

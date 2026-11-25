@@ -14,7 +14,14 @@ export interface Veiculo extends VeiculoInput {
   data_cadastro: Date;
 }
 
-export function validateVeiculo(body: unknown): VeiculoInput {
+export const tiposVeiculo = ['Automóvel', 'Motocicleta', 'Motoneta', 'Caminhonete', 'Camioneta', 'Caminhão', 'Ônibus', 'Reboque / Semirreboque', 'Outros'] as const;
+export function validateTipoVeiculo(value: string, existing?: string): void {
+  if (!(tiposVeiculo as readonly string[]).includes(value) && value !== existing) {
+    return invalid('Selecione um tipo de veículo da lista. Um valor anterior só pode ser mantido no próprio veículo.');
+  }
+}
+
+export function validateVeiculo(body: unknown, deferTypeCheck = false): VeiculoInput {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return invalid('Envie um objeto JSON de veículo.');
   const data = body as Record<string, unknown>;
   const allowed = ['id_cliente_proprietario', 'placa', 'tipo_veiculo', 'marca', 'modelo', 'ano', 'renavam'];
@@ -31,10 +38,12 @@ export function validateVeiculo(body: unknown): VeiculoInput {
   if (ano !== null && (typeof ano !== 'number' || !Number.isInteger(ano) || ano < 1000 || ano > 9999)) {
     return invalid('ano deve ser um inteiro de quatro dígitos ou null.');
   }
+  const tipo = requiredText(data.tipo_veiculo, 'tipo_veiculo', 30);
+  if (!deferTypeCheck) validateTipoVeiculo(tipo);
   return {
     id_cliente_proprietario: owner,
     placa: placa.replace('-', ''),
-    tipo_veiculo: requiredText(data.tipo_veiculo, 'tipo_veiculo', 30),
+    tipo_veiculo: tipo,
     marca: requiredText(data.marca, 'marca', 50),
     modelo: requiredText(data.modelo, 'modelo', 80),
     ano: ano as number | null,
